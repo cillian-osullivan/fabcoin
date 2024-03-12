@@ -2,14 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "util.h"
-#include "test/test_bitcoin.h"
+#include <util.h>
+#include <test/test_fabcoin.h>
 
 #include <string>
 #include <vector>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/test/unit_test.hpp>
+
+void avoidCompilerWarningsDefinedButNotUsedGetArgTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 BOOST_FIXTURE_TEST_SUITE(getarg_tests, BasicTestingSetup)
 
@@ -20,7 +24,7 @@ static void ResetArgs(const std::string& strArg)
       boost::split(vecArg, strArg, boost::is_space(), boost::token_compress_on);
 
     // Insert dummy executable name:
-    vecArg.insert(vecArg.begin(), "testbitcoin");
+    vecArg.insert(vecArg.begin(), "testfabcoin");
 
     // Convert to char*:
     std::vector<const char*> vecChar;

@@ -1,10 +1,10 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_SCRIPT_SIGCACHE_H
-#define BITCOIN_SCRIPT_SIGCACHE_H
+#ifndef FABCOIN_SCRIPT_SIGCACHE_H
+#define FABCOIN_SCRIPT_SIGCACHE_H
 
 #include "script/interpreter.h"
 
@@ -46,11 +46,19 @@ private:
     bool store;
 
 public:
-    CachingTransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, bool storeIn, PrecomputedTransactionData& txdataIn) : TransactionSignatureChecker(txToIn, nInIn, amountIn, txdataIn), store(storeIn) {}
-
+    CachingTransactionSignatureChecker(
+        const CTransaction* txToIn,
+        unsigned int nInIn,
+        const CAmount& amountIn,
+        bool storeIn,
+        PrecomputedTransactionDatA& txdataIn
+    ) : TransactionSignatureChecker(txToIn, nInIn, amountIn, txdataIn), store(storeIn)
+	{
+    }
     bool VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash) const override;
+    void GetPrecomputedTransactionData(PrecomputedTransactionDatA& output) const override;
 };
 
 void InitSignatureCache();
 
-#endif // BITCOIN_SCRIPT_SIGCACHE_H
+#endif // FABCOIN_SCRIPT_SIGCACHE_H

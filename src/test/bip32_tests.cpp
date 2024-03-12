@@ -4,15 +4,19 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include "base58.h"
-#include "key.h"
-#include "uint256.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "test/test_bitcoin.h"
+#include <base58.h>
+#include <key.h>
+#include <uint256.h>
+#include <util.h>
+#include <utilstrencodings.h>
+#include <test/test_fabcoin.h>
 
 #include <string>
 #include <vector>
+
+void avoidCompilerWarningsDefinedButNotUsedBIP32Tests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 struct TestDerivation {
     std::string pub;
@@ -99,18 +103,18 @@ void RunTest(const TestVector &test) {
         pubkey.Encode(data);
 
         // Test private key
-        CBitcoinExtKey b58key; b58key.SetKey(key);
+        CFabcoinExtKey b58key; b58key.SetKey(key);
         BOOST_CHECK(b58key.ToString() == derive.prv);
 
-        CBitcoinExtKey b58keyDecodeCheck(derive.prv);
+        CFabcoinExtKey b58keyDecodeCheck(derive.prv);
         CExtKey checkKey = b58keyDecodeCheck.GetKey();
         assert(checkKey == key); //ensure a base58 decoded key also matches
 
         // Test public key
-        CBitcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
+        CFabcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
         BOOST_CHECK(b58pubkey.ToString() == derive.pub);
 
-        CBitcoinExtPubKey b58PubkeyDecodeCheck(derive.pub);
+        CFabcoinExtPubKey b58PubkeyDecodeCheck(derive.pub);
         CExtPubKey checkPubKey = b58PubkeyDecodeCheck.GetKey();
         assert(checkPubKey == pubkey); //ensure a base58 decoded pubkey also matches
 

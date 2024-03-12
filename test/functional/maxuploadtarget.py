@@ -14,7 +14,7 @@ from collections import defaultdict
 import time
 
 from test_framework.mininode import *
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 
 class TestNode(NodeConnCB):
@@ -29,7 +29,7 @@ class TestNode(NodeConnCB):
         message.block.calc_sha256()
         self.block_receive_map[message.block.sha256] += 1
 
-class MaxUploadTest(BitcoinTestFramework):
+class MaxUploadTest(FabcoinTestFramework):
  
     def set_test_params(self):
         self.setup_clean_chain = True
@@ -47,7 +47,7 @@ class MaxUploadTest(BitcoinTestFramework):
         self.nodes[0].setmocktime(old_time)
 
         # Generate some old blocks
-        self.nodes[0].generate(130)
+        self.nodes[0].generate(830)
 
         # test_nodes[0] will only request old blocks
         # test_nodes[1] will only request new blocks

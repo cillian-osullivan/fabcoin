@@ -9,7 +9,7 @@ soft-forks, and test that warning alerts are generated.
 """
 
 from test_framework.mininode import *
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 import re
 from test_framework.blocktools import create_block, create_coinbase
@@ -27,7 +27,7 @@ class TestNode(NodeConnCB):
     def on_inv(self, conn, message):
         pass
 
-class VersionBitsWarningTest(BitcoinTestFramework):
+class VersionBitsWarningTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 1
@@ -48,7 +48,7 @@ class VersionBitsWarningTest(BitcoinTestFramework):
         tip = int(tip, 16)
 
         for _ in range(numblocks):
-            block = create_block(tip, create_coinbase(height+1), block_time)
+            block = create_block(tip, create_coinbase(height+1), height+1, block_time)
             block.nVersion = nVersionToUse
             block.solve()
             peer.send_message(msg_block(block))

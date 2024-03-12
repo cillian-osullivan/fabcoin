@@ -1,20 +1,24 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "blockencodings.h"
-#include "consensus/merkle.h"
-#include "chainparams.h"
-#include "random.h"
+#include <blockencodings.h>
+#include <consensus/merkle.h>
+#include <chainparams.h>
+#include <random.h>
 
-#include "test/test_bitcoin.h"
+#include <test/test_fabcoin.h>
 
 #include <boost/test/unit_test.hpp>
+
+void avoidCompilerWarningsDefinedButNotUsedBlockEncodingsTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 std::vector<std::pair<uint256, CTransactionRef>> extra_txn;
 
 struct RegtestingSetup : public TestingSetup {
-    RegtestingSetup() : TestingSetup(CBaseChainParams::REGTEST) {}
+    RegtestingSetup() : TestingSetup(CBaseChainParams::UNITTEST) {}
 };
 
 BOOST_FIXTURE_TEST_SUITE(blockencodings_tests, RegtestingSetup)
@@ -47,7 +51,10 @@ static CBlock BuildBlockTestCase() {
     bool mutated;
     block.hashMerkleRoot = BlockMerkleRoot(block, &mutated);
     assert(!mutated);
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, false, Params().GetConsensus())) 
+    {
+        block.nNonce = ArithToUint256(UintToArith256(block.nNonce) + 1);
+    }
     return block;
 }
 
@@ -289,7 +296,10 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRoundTripTest)
     bool mutated;
     block.hashMerkleRoot = BlockMerkleRoot(block, &mutated);
     assert(!mutated);
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, false, Params().GetConsensus())) 
+    {
+        block.nNonce = ArithToUint256(UintToArith256(block.nNonce) + 1);
+    }
 
     // Test simple header round-trip with only coinbase
     {

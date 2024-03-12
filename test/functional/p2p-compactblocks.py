@@ -9,12 +9,12 @@ Version 2 compact blocks are post-segwit (wtxids)
 """
 
 from test_framework.mininode import *
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 from test_framework.blocktools import create_block, create_coinbase, add_witness_commitment
 from test_framework.script import CScript, OP_TRUE
 
-# TestNode: A peer we use to send messages to bitcoind, and store responses.
+# TestNode: A peer we use to send messages to fabcoind, and store responses.
 class TestNode(NodeConnCB):
     def __init__(self):
         super().__init__()
@@ -88,19 +88,19 @@ class TestNode(NodeConnCB):
         self.send_message(message)
         wait_until(lambda: not self.connected, timeout=timeout, lock=mininode_lock)
 
-class CompactBlocksTest(BitcoinTestFramework):
+class CompactBlocksTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         # Node0 = pre-segwit, node1 = segwit-aware
         self.num_nodes = 2
-        self.extra_args = [["-vbparams=segwit:0:0"], ["-txindex"]]
+        self.extra_args = [["-vbparams=segwit:0:0", "-minrelaytxfee=0.000001"], ["-txindex", "-minrelaytxfee=0.000001"]]
         self.utxos = []
 
     def build_block_on_tip(self, node, segwit=False):
         height = node.getblockcount()
         tip = node.getbestblockhash()
         mtp = node.getblockheader(tip)['mediantime']
-        block = create_block(int(tip, 16), create_coinbase(height + 1), mtp + 1)
+        block = create_block(int(tip, 16), create_coinbase(height + 1), height +1, mtp + 1)
         block.nVersion = 4
         if segwit:
             add_witness_commitment(block)
@@ -113,7 +113,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         block = self.build_block_on_tip(self.nodes[0])
         self.test_node.send_and_ping(msg_block(block))
         assert(int(self.nodes[0].getbestblockhash(), 16) == block.sha256)
-        self.nodes[0].generate(100)
+        self.nodes[0].generate(COINBASE_MATURITY)
 
         total_value = block.vtx[0].vout[0].nValue
         out_value = total_value // 10
@@ -126,6 +126,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         block2 = self.build_block_on_tip(self.nodes[0])
         block2.vtx.append(tx)
         block2.hashMerkleRoot = block2.calc_merkle_root()
+        block2.nHeihgt=self.nodes[0].getblockcount()+1
         block2.solve()
         self.test_node.send_and_ping(msg_block(block2))
         assert_equal(int(self.nodes[0].getbestblockhash(), 16), block2.sha256)
@@ -232,7 +233,7 @@ class CompactBlocksTest(BitcoinTestFramework):
             old_node.request_headers_and_sync(locator=[tip])
             check_announcement_of_new_block(node, old_node, lambda p: "cmpctblock" in p.last_message)
 
-    # This test actually causes bitcoind to (reasonably!) disconnect us, so do this last.
+    # This test actually causes fabcoind to (reasonably!) disconnect us, so do this last.
     def test_invalid_cmpctblock_message(self):
         self.nodes[0].generate(101)
         block = self.build_block_on_tip(self.nodes[0])
@@ -247,7 +248,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         assert_equal(int(self.nodes[0].getbestblockhash(), 16), block.hashPrevBlock)
 
     # Compare the generated shortids to what we expect based on BIP 152, given
-    # bitcoind's choice of nonce.
+    # fabcoind's choice of nonce.
     def test_compactblock_construction(self, node, test_node, version, use_witness_address):
         # Generate a bunch of transactions.
         node.generate(101)
@@ -360,7 +361,7 @@ class CompactBlocksTest(BitcoinTestFramework):
                 header_and_shortids.shortids.pop(0)
             index += 1
 
-    # Test that bitcoind requests compact blocks when we announce new blocks
+    # Test that fabcoind requests compact blocks when we announce new blocks
     # via header or inv, and that responding to getblocktxn causes the block
     # to be successfully reconstructed.
     # Post-segwit: upgraded nodes would only make this request of cb-version-2,
@@ -426,6 +427,7 @@ class CompactBlocksTest(BitcoinTestFramework):
             block.vtx.append(tx)
 
         block.hashMerkleRoot = block.calc_merkle_root()
+        block.nHeihgt=self.nodes[0].getblockcount()+1
         block.solve()
         return block
 
@@ -542,7 +544,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         assert_equal(absolute_indexes, [6, 7, 8, 9, 10])
 
         # Now give an incorrect response.
-        # Note that it's possible for bitcoind to be smart enough to know we're
+        # Note that it's possible for fabcoind to be smart enough to know we're
         # lying, since it could check to see if the shortid matches what we're
         # sending, and eg disconnect us for misbehavior.  If that behavior
         # change were made, we could just modify this test by having a
@@ -572,7 +574,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         assert_equal(int(node.getbestblockhash(), 16), block.sha256)
 
     def test_getblocktxn_handler(self, node, test_node, version):
-        # bitcoind will not send blocktxn responses for blocks whose height is
+        # fabcoind will not send blocktxn responses for blocks whose height is
         # more than 10 blocks deep.
         MAX_GETBLOCKTXN_DEPTH = 10
         chain_height = node.getblockcount()
@@ -705,6 +707,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         block = self.build_block_with_transactions(node, utxo, 5)
         del block.vtx[3]
         block.hashMerkleRoot = block.calc_merkle_root()
+        block.nHeihgt=self.nodes[0].getblockcount()+1
         if use_segwit:
             # If we're testing with segwit, also drop the coinbase witness,
             # but include the witness commitment.
@@ -815,6 +818,9 @@ class CompactBlocksTest(BitcoinTestFramework):
         self.test_sendcmpct(self.nodes[1], self.segwit_node, 2, old_node=self.old_node)
         sync_blocks(self.nodes)
 
+        self.nodes[0].generate(1)
+        self.nodes[1].generate(1)
+        self.nodes[0].generate(COINBASE_MATURITY)
         self.log.info("Testing compactblock construction...")
         self.test_compactblock_construction(self.nodes[0], self.test_node, 1, False)
         sync_blocks(self.nodes)

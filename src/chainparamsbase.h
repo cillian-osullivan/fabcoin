@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CHAINPARAMSBASE_H
-#define BITCOIN_CHAINPARAMSBASE_H
+#ifndef FABCOIN_CHAINPARAMSBASE_H
+#define FABCOIN_CHAINPARAMSBASE_H
 
 #include <memory>
 #include <string>
 #include <vector>
 
 /**
- * CBaseChainParams defines the base parameters (shared between bitcoin-cli and bitcoind)
- * of a given instance of the Bitcoin system.
+ * CBaseChainParams defines the base parameters (shared between fabcoin-cli and fabcoind)
+ * of a given instance of the Fabcoin system.
  */
 class CBaseChainParams
 {
@@ -20,6 +20,10 @@ public:
     static const std::string MAIN;
     static const std::string TESTNET;
     static const std::string REGTEST;
+    static const std::string REGTESTWITHNET;
+    static const std::string UNITTEST;
+    static std::string kanbanId;
+    static std::vector<unsigned char> kanbanIdBytes;
 
     const std::string& DataDir() const { return strDataDir; }
     int RPCPort() const { return nRPCPort; }
@@ -59,4 +63,4 @@ void SelectBaseParams(const std::string& chain);
  */
 std::string ChainNameFromCommandLine();
 
-#endif // BITCOIN_CHAINPARAMSBASE_H
+#endif // FABCOIN_CHAINPARAMSBASE_H

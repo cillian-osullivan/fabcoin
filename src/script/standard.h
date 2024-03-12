@@ -1,10 +1,10 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_SCRIPT_STANDARD_H
-#define BITCOIN_SCRIPT_STANDARD_H
+#ifndef FABCOIN_SCRIPT_STANDARD_H
+#define FABCOIN_SCRIPT_STANDARD_H
 
 #include "script/interpreter.h"
 #include "uint256.h"
@@ -15,6 +15,12 @@
 
 static const bool DEFAULT_ACCEPT_DATACARRIER = true;
 
+//contract executions with less gas than this are not standard
+//Make sure is always equal or greater than MINIMUM_GAS_LIMIT (which we can't reference here due to insane header dependency chains)
+static const uint64_t STANDARD_MINIMUM_GAS_LIMIT = 10000;
+//contract executions with a price cheaper than this (in lius) are not standard
+//TODO this needs to be controlled by DGP and needs to be propogated from consensus parameters
+static const uint64_t STANDARD_MINIMUM_GAS_PRICE = 1;
 class CKeyID;
 class CScript;
 
@@ -53,6 +59,12 @@ enum txnouttype
     TX_NULL_DATA,
     TX_WITNESS_V0_SCRIPTHASH,
     TX_WITNESS_V0_KEYHASH,
+    TX_CREATE,
+    TX_CALL,
+    TX_AGGREGATE_SIGNATURE, //<- newly added
+    TX_SCAR_SIGNATURE, //<- newly added
+    TX_CONTRACT_COVERS_FEES, //<- newly added
+    TX_PUBLIC_KEY_NO_ANCESTOR //<- newly added
 };
 
 class CNoDestination {
@@ -66,14 +78,14 @@ public:
  *  * CNoDestination: no destination set
  *  * CKeyID: TX_PUBKEYHASH destination
  *  * CScriptID: TX_SCRIPTHASH destination
- *  A CTxDestination is the internal data type encoded in a CBitcoinAddress
+ *  A CTxDestination is the internal data type encoded in a CFabcoinAddress
  */
 typedef boost::variant<CNoDestination, CKeyID, CScriptID> CTxDestination;
 
 const char* GetTxnOutputType(txnouttype t);
 
-bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
-bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
+bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet, bool contractConsensus=false);
+bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet, txnouttype* typeRet = nullptr);
 bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet);
 
 CScript GetScriptForDestination(const CTxDestination& dest);
@@ -81,4 +93,4 @@ CScript GetScriptForRawPubKey(const CPubKey& pubkey);
 CScript GetScriptForMultisig(int nRequired, const std::vector<CPubKey>& keys);
 CScript GetScriptForWitness(const CScript& redeemscript);
 
-#endif // BITCOIN_SCRIPT_STANDARD_H
+#endif // FABCOIN_SCRIPT_STANDARD_H

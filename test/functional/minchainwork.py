@@ -17,13 +17,13 @@ only succeeds past a given node once its nMinimumChainWork has been exceeded.
 
 import time
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import sync_blocks, connect_nodes, assert_equal
 
 # 2 hashes required per regtest block (with no difficulty adjustment)
 REGTEST_WORK_PER_BLOCK = 2
 
-class MinimumChainWorkTest(BitcoinTestFramework):
+class MinimumChainWorkTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 3
@@ -53,7 +53,7 @@ class MinimumChainWorkTest(BitcoinTestFramework):
         self.log.info("Generating %d blocks on node0", num_blocks_to_generate)
         hashes = self.nodes[0].generate(num_blocks_to_generate)
 
-        self.log.info("Node0 current chain work: %s", self.nodes[0].getblockheader(hashes[-1])['chainwork'])
+        self.log.info("Node0 current chain work: %s", self.nodes[0].getblockheader(hashes[-1], True)['chainwork'])
 
         # Sleep a few seconds and verify that node2 didn't get any new blocks
         # or headers.  We sleep, rather than sync_blocks(node0, node1) because
@@ -85,6 +85,9 @@ class MinimumChainWorkTest(BitcoinTestFramework):
         # connections were not manual, so the reconnect is necessary.
         if (len(self.nodes[0].getpeerinfo()) == 0):
             connect_nodes(self.nodes[1], 0)
+
+        if (len(self.nodes[2].getpeerinfo()) == 0):
+            connect_nodes(self.nodes[2], 0)
 
         self.sync_all()
         self.log.info("Blockcounts: %s", [n.getblockcount() for n in self.nodes])

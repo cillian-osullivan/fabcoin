@@ -33,7 +33,7 @@ import time
 
 from test_framework.mininode import *
 from test_framework.script import *
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 
 HTTP_DISCONNECT_ERRORS = [http.client.CannotSendRequest]
@@ -42,7 +42,7 @@ try:
 except AttributeError:
     pass
 
-class ChainstateWriteCrashTest(BitcoinTestFramework):
+class ChainstateWriteCrashTest(FabcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 4
         self.setup_clean_chain = False
@@ -84,14 +84,14 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
                 return utxo_hash
             except:
                 # An exception here should mean the node is about to crash.
-                # If bitcoind exits, then try again.  wait_for_node_exit()
-                # should raise an exception if bitcoind doesn't exit.
+                # If fabcoind exits, then try again.  wait_for_node_exit()
+                # should raise an exception if fabcoind doesn't exit.
                 self.wait_for_node_exit(node_index, timeout=10)
             self.crashed_on_restart += 1
             time.sleep(1)
 
-        # If we got here, bitcoind isn't coming back up on restart.  Could be a
-        # bug in bitcoind, or we've gotten unlucky with our dbcrash ratio --
+        # If we got here, fabcoind isn't coming back up on restart.  Could be a
+        # bug in fabcoind, or we've gotten unlucky with our dbcrash ratio --
         # perhaps we generated a test case that blew up our cache?
         # TODO: If this happens a lot, we should try to restart without -dbcrashratio
         # and make sure that recovery happens.
@@ -217,7 +217,7 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
 
         # Start by creating a lot of utxos on node3
         initial_height = self.nodes[3].getblockcount()
-        utxo_list = create_confirmed_utxos(self.nodes[3].getnetworkinfo()['relayfee'], self.nodes[3], 5000)
+        utxo_list = create_confirmed_utxos(self.nodes[3].getnetworkinfo()['relayfee'], self.nodes[3], 2500)
         self.log.info("Prepped %d utxo entries", len(utxo_list))
 
         # Sync these blocks with the other nodes

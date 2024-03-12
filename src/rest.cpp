@@ -1,26 +1,30 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "chain.h"
-#include "chainparams.h"
-#include "core_io.h"
-#include "primitives/block.h"
-#include "primitives/transaction.h"
-#include "validation.h"
-#include "httpserver.h"
-#include "rpc/blockchain.h"
-#include "rpc/server.h"
-#include "streams.h"
-#include "sync.h"
-#include "txmempool.h"
-#include "utilstrencodings.h"
-#include "version.h"
+#include <chain.h>
+#include <chainparams.h>
+#include <core_io.h>
+#include <primitives/block.h>
+#include <primitives/transaction.h>
+#include <validation.h>
+#include <httpserver.h>
+#include <rpc/blockchain.h>
+#include <rpc/server.h>
+#include <streams.h>
+#include <sync.h>
+#include <txmempool.h>
+#include <utilstrencodings.h>
+#include <version.h>
 
 #include <boost/algorithm/string.hpp>
 
 #include <univalue.h>
+
+void avoidCompilerWarningsDefinedButNotUsedREST() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 static const size_t MAX_GETUTXOS_OUTPOINTS = 15; //allow a max of 15 outpoints to be queried at once
 
@@ -63,6 +67,7 @@ struct CCoin {
 static bool RESTERR(HTTPRequest* req, enum HTTPStatusCode status, std::string message)
 {
     req->WriteHeader("Content-Type", "text/plain");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
     req->WriteReply(status, message + "\r\n");
     return false;
 }
@@ -131,14 +136,23 @@ static bool rest_headers(HTTPRequest* req,
     std::vector<std::string> path;
     boost::split(path, param, boost::is_any_of("/"));
 
-    if (path.size() != 2)
-        return RESTERR(req, HTTP_BAD_REQUEST, "No header count specified. Use /rest/headers/<count>/<hash>.<ext>.");
-
-    long count = strtol(path[0].c_str(), nullptr, 10);
+    if (path.size() != 2 && (path.size() != 3 || path[0] != "legacy")) {
+        return RESTERR(req, HTTP_BAD_REQUEST, "No header count specified. Use /rest/headers/<count>/<hash>.<ext> or /rest/headers/legacy/<count>/<hash>.<ext>.");
+    }                           //use old rule if URI=/legacy/<COUNT>/<BLOCK-HASH>
+    std::string headerCount,hashStr;
+    if (path.size() == 2) {
+        headerCount = path[0];
+        hashStr = path[1];
+    }
+    else {
+        headerCount = path[1];
+        hashStr = path[2];
+    }
+    long count = strtol(headerCount.c_str(), nullptr, 10);
     if (count < 1 || count > 2000)
         return RESTERR(req, HTTP_BAD_REQUEST, "Header count out of range: " + path[0]);
 
-    std::string hashStr = path[1];
+    
     uint256 hash;
     if (!ParseHashStr(hashStr, hash))
         return RESTERR(req, HTTP_BAD_REQUEST, "Invalid hash: " + hashStr);
@@ -156,8 +170,8 @@ static bool rest_headers(HTTPRequest* req,
             pindex = chainActive.Next(pindex);
         }
     }
+    CDataStream ssHeader(SER_NETWORK, PROTOCOL_VERSION );
 
-    CDataStream ssHeader(SER_NETWORK, PROTOCOL_VERSION);
     for (const CBlockIndex *pindex : headers) {
         ssHeader << pindex->GetBlockHeader();
     }
@@ -166,6 +180,7 @@ static bool rest_headers(HTTPRequest* req,
     case RF_BINARY: {
         std::string binaryHeader = ssHeader.str();
         req->WriteHeader("Content-Type", "application/octet-stream");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, binaryHeader);
         return true;
     }
@@ -173,6 +188,7 @@ static bool rest_headers(HTTPRequest* req,
     case RF_HEX: {
         std::string strHex = HexStr(ssHeader.begin(), ssHeader.end()) + "\n";
         req->WriteHeader("Content-Type", "text/plain");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strHex);
         return true;
     }
@@ -183,6 +199,7 @@ static bool rest_headers(HTTPRequest* req,
         }
         std::string strJSON = jsonHeaders.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strJSON);
         return true;
     }
@@ -201,8 +218,17 @@ static bool rest_block(HTTPRequest* req,
 {
     if (!CheckWarmup(req))
         return false;
-    std::string hashStr;
-    const RetFormat rf = ParseDataFormat(hashStr, strURIPart);
+    std::string param, hashStr;
+    const RetFormat rf = ParseDataFormat(param, strURIPart);
+    std::vector<std::string> path;
+    boost::split(path, param, boost::is_any_of("/"));
+
+    if (path.size() == 1) {          
+        hashStr = path[0];
+    }
+    else {
+        hashStr = path[1];
+    }
 
     uint256 hash;
     if (!ParseHashStr(hashStr, hash))
@@ -222,14 +248,14 @@ static bool rest_block(HTTPRequest* req,
         if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
             return RESTERR(req, HTTP_NOT_FOUND, hashStr + " not found");
     }
-
-    CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
+    CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags() );
     ssBlock << block;
 
     switch (rf) {
     case RF_BINARY: {
         std::string binaryBlock = ssBlock.str();
         req->WriteHeader("Content-Type", "application/octet-stream");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, binaryBlock);
         return true;
     }
@@ -237,6 +263,7 @@ static bool rest_block(HTTPRequest* req,
     case RF_HEX: {
         std::string strHex = HexStr(ssBlock.begin(), ssBlock.end()) + "\n";
         req->WriteHeader("Content-Type", "text/plain");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strHex);
         return true;
     }
@@ -245,6 +272,7 @@ static bool rest_block(HTTPRequest* req,
         UniValue objBlock = blockToJSON(block, pblockindex, showTxDetails);
         std::string strJSON = objBlock.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strJSON);
         return true;
     }
@@ -280,11 +308,12 @@ static bool rest_chaininfo(HTTPRequest* req, const std::string& strURIPart)
 
     switch (rf) {
     case RF_JSON: {
-        JSONRPCRequest jsonRequest;
+        JSONRPCRequest jsonRequest(req);
         jsonRequest.params = UniValue(UniValue::VARR);
         UniValue chainInfoObject = getblockchaininfo(jsonRequest);
         std::string strJSON = chainInfoObject.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strJSON);
         return true;
     }
@@ -310,6 +339,7 @@ static bool rest_mempool_info(HTTPRequest* req, const std::string& strURIPart)
 
         std::string strJSON = mempoolInfoObject.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strJSON);
         return true;
     }
@@ -335,6 +365,7 @@ static bool rest_mempool_contents(HTTPRequest* req, const std::string& strURIPar
 
         std::string strJSON = mempoolObject.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strJSON);
         return true;
     }
@@ -370,6 +401,7 @@ static bool rest_tx(HTTPRequest* req, const std::string& strURIPart)
     case RF_BINARY: {
         std::string binaryTx = ssTx.str();
         req->WriteHeader("Content-Type", "application/octet-stream");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, binaryTx);
         return true;
     }
@@ -377,6 +409,7 @@ static bool rest_tx(HTTPRequest* req, const std::string& strURIPart)
     case RF_HEX: {
         std::string strHex = HexStr(ssTx.begin(), ssTx.end()) + "\n";
         req->WriteHeader("Content-Type", "text/plain");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strHex);
         return true;
     }
@@ -386,6 +419,7 @@ static bool rest_tx(HTTPRequest* req, const std::string& strURIPart)
         TxToUniv(*tx, hashBlock, objTx);
         std::string strJSON = objTx.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strJSON);
         return true;
     }
@@ -534,6 +568,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         std::string ssGetUTXOResponseString = ssGetUTXOResponse.str();
 
         req->WriteHeader("Content-Type", "application/octet-stream");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, ssGetUTXOResponseString);
         return true;
     }
@@ -544,6 +579,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         std::string strHex = HexStr(ssGetUTXOResponse.begin(), ssGetUTXOResponse.end()) + "\n";
 
         req->WriteHeader("Content-Type", "text/plain");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strHex);
         return true;
     }
@@ -574,6 +610,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
         // return json string
         std::string strJSON = objGetUTXOResponse.write() + "\n";
         req->WriteHeader("Content-Type", "application/json");
+        req->WriteHeader("Access-Control-Allow-Origin", "*");
         req->WriteReply(HTTP_OK, strJSON);
         return true;
     }

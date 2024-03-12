@@ -1,22 +1,26 @@
-// Copyright (c) 2016 The Bitcoin Core developers
+// Copyright (c)2016-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "rpcnestedtests.h"
+#include <qt/test/rpcnestedtests.h>
 
-#include "chainparams.h"
-#include "consensus/validation.h"
-#include "fs.h"
-#include "validation.h"
-#include "rpc/register.h"
-#include "rpc/server.h"
-#include "rpcconsole.h"
-#include "test/test_bitcoin.h"
-#include "univalue.h"
-#include "util.h"
+#include <chainparams.h>
+#include <consensus/validation.h>
+#include <fs.h>
+#include <validation.h>
+#include <rpc/register.h>
+#include <rpc/server.h>
+#include <rpcconsole.h>
+#include <test/test_fabcoin.h>
+#include <univalue.h>
+#include <util.h>
 
 #include <QDir>
 #include <QtGlobal>
+
+void avoidCompilerWarningsDefinedButNotUsedRPCNestedTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 static UniValue rpcNestedTest_rpc(const JSONRPCRequest& request)
 {
@@ -73,7 +77,7 @@ void RPCNestedTests::rpcNestedTests()
     QVERIFY(result == result2);
 
     RPCConsole::RPCExecuteCommandLine(result, "getblock(getbestblockhash())[tx][0]", &filtered);
-    QVERIFY(result == "4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b");
+    QVERIFY(result == "e89cf9aeaa7b90a0c6695946bf23a41447c4ade44a63e6fa40481e35957e69aa");
     QVERIFY(filtered == "getblock(getbestblockhash())[tx][0]");
 
     RPCConsole::RPCParseCommandLine(result, "importprivkey", false, &filtered);

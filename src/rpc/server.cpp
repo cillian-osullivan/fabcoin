@@ -1,18 +1,18 @@
 // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "rpc/server.h"
+#include <rpc/server.h>
 
-#include "base58.h"
-#include "fs.h"
-#include "init.h"
-#include "random.h"
-#include "sync.h"
-#include "ui_interface.h"
-#include "util.h"
-#include "utilstrencodings.h"
+#include <base58.h>
+#include <fs.h>
+#include <init.h>
+#include <random.h>
+#include <sync.h>
+#include <ui_interface.h>
+#include <util.h>
+#include <utilstrencodings.h>
 
 #include <univalue.h>
 
@@ -24,6 +24,10 @@
 
 #include <memory> // for unique_ptr
 #include <unordered_map>
+
+void avoidCompilerWarningsDefinedButNotUsedServer() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 static bool fRPCRunning = false;
 static bool fRPCInWarmup = true;
@@ -240,11 +244,11 @@ UniValue stop(const JSONRPCRequest& jsonRequest)
     if (jsonRequest.fHelp || jsonRequest.params.size() > 1)
         throw std::runtime_error(
             "stop\n"
-            "\nStop Bitcoin server.");
+            "\nStop Fabcoin server.");
     // Event loop will exit after current HTTP requests have been handled, so
     // this reply will get back to the client.
     StartShutdown();
-    return "Bitcoin server stopping";
+    return "Fabcoin server stopping";
 }
 
 UniValue uptime(const JSONRPCRequest& jsonRequest)
@@ -358,6 +362,45 @@ bool RPCIsInWarmup(std::string *outStatus)
     return fRPCInWarmup;
 }
 
+JSONRPCRequest::JSONRPCRequest(HTTPRequest *_req): JSONRPCRequest() {
+	req = _req;
+}
+
+bool JSONRPCRequest::PollAlive() {
+    return !req->isConnClosed();
+}
+
+void JSONRPCRequest::PollStart() {
+    // send an empty space to the client to ensure that it's still alive.
+    assert(!isLongPolling);
+    req->WriteHeader("Content-Type", "application/json");
+    req->WriteHeader("Connection", "close");
+    req->Chunk(std::string(" "));
+    isLongPolling = true;
+}
+
+void JSONRPCRequest::PollPing() {
+    assert(isLongPolling);
+    // send an empty space to the client to ensure that it's still alive.
+    req->Chunk(std::string(" "));
+}
+
+void JSONRPCRequest::PollCancel() {
+    assert(isLongPolling);
+    req->ChunkEnd();
+}
+
+void JSONRPCRequest::PollReply(const UniValue& result) {
+    assert(isLongPolling);
+    UniValue reply(UniValue::VOBJ);
+    reply.push_back(Pair("result", result));
+    reply.push_back(Pair("error", NullUniValue));
+    reply.push_back(Pair("id", id));
+
+    req->Chunk(reply.write() + "\n");
+    req->ChunkEnd();
+}
+
 void JSONRPCRequest::parse(const UniValue& valRequest)
 {
     // Parse request
@@ -391,7 +434,7 @@ static UniValue JSONRPCExecOne(const UniValue& req)
 {
     UniValue rpc_result(UniValue::VOBJ);
 
-    JSONRPCRequest jreq;
+    JSONRPCRequest jreq(NULL);
     try {
         jreq.parse(req);
 
@@ -514,13 +557,13 @@ std::vector<std::string> CRPCTable::listCommands() const
 
 std::string HelpExampleCli(const std::string& methodname, const std::string& args)
 {
-    return "> bitcoin-cli " + methodname + " " + args + "\n";
+    return "> fabcoin-cli " + methodname + " " + args + "\n";
 }
 
 std::string HelpExampleRpc(const std::string& methodname, const std::string& args)
 {
     return "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\":\"curltest\", "
-        "\"method\": \"" + methodname + "\", \"params\": [" + args + "] }' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n";
+        "\"method\": \"" + methodname + "\", \"params\": [" + args + "] }' -H 'content-type: text/plain;' http://127.0.0.1:8667/\n";
 }
 
 void RPCSetTimerInterfaceIfUnset(RPCTimerInterface *iface)

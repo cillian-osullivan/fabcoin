@@ -13,10 +13,11 @@ RPCs tested are:
     - move (with account arguments)
 """
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import assert_equal
+from test_framework.fabcoinconfig import COINBASE_MATURITY, INITIAL_BLOCK_REWARD
 
-class WalletAccountsTest(BitcoinTestFramework):
+class WalletAccountsTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 1
@@ -30,11 +31,11 @@ class WalletAccountsTest(BitcoinTestFramework):
         # Note each time we call generate, all generated coins go into
         # the same address, so we call twice to get two addresses w/50 each
         node.generate(1)
-        node.generate(101)
-        assert_equal(node.getbalance(), 100)
+        node.generate(COINBASE_MATURITY+1)
+        assert_equal(node.getbalance(), 2*INITIAL_BLOCK_REWARD)
 
         # there should be 2 address groups
-        # each with 1 address with a balance of 50 Bitcoins
+        # each with 1 address with a balance of 50 Fabcoins
         address_groups = node.listaddressgroupings()
         assert_equal(len(address_groups), 2)
         # the addresses aren't linked now, but will be after we send to the
@@ -43,7 +44,7 @@ class WalletAccountsTest(BitcoinTestFramework):
         for address_group in address_groups:
             assert_equal(len(address_group), 1)
             assert_equal(len(address_group[0]), 2)
-            assert_equal(address_group[0][1], 50)
+            assert_equal(address_group[0][1], INITIAL_BLOCK_REWARD)
             linked_addresses.add(address_group[0][0])
 
         # send 50 from each address to a third address not in this wallet
@@ -52,7 +53,7 @@ class WalletAccountsTest(BitcoinTestFramework):
         common_address = "msf4WtN1YQKXvNtvdFYt9JBnUD2FB41kjr"
         txid = node.sendmany(
             fromaccount="",
-            amounts={common_address: 100},
+            amounts={common_address: 2*INITIAL_BLOCK_REWARD},
             subtractfeefrom=[common_address],
             minconf=1,
         )
@@ -101,15 +102,15 @@ class WalletAccountsTest(BitcoinTestFramework):
             assert_equal(node.getreceivedbyaccount(account), 2)
             node.move(account, "", node.getbalance(account))
 
-        node.generate(101)
+        node.generate(COINBASE_MATURITY+1)
         
-        expected_account_balances = {"": 5200}
+        expected_account_balances = {"": (COINBASE_MATURITY+4)*INITIAL_BLOCK_REWARD}
         for account in accounts:
             expected_account_balances[account] = 0
         
         assert_equal(node.listaccounts(), expected_account_balances)
         
-        assert_equal(node.getbalance(""), 5200)
+        assert_equal(node.getbalance(""), (COINBASE_MATURITY+4)*INITIAL_BLOCK_REWARD)
         
         for account in accounts:
             address = node.getaccountaddress("")
@@ -124,7 +125,7 @@ class WalletAccountsTest(BitcoinTestFramework):
             multisig_address = node.addmultisigaddress(5, addresses, account)
             node.sendfrom("", multisig_address, 50)
         
-        node.generate(101)
+        node.generate(COINBASE_MATURITY+1)
         
         for account in accounts:
             assert_equal(node.getbalance(account), 50)

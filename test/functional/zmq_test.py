@@ -7,13 +7,15 @@ import configparser
 import os
 import struct
 
-from test_framework.test_framework import BitcoinTestFramework, SkipTest
+from test_framework.test_framework import FabcoinTestFramework, SkipTest
 from test_framework.util import (assert_equal,
                                  bytes_to_hex_str,
                                  hash256,
                                 )
+from test_framework.mininode import CTransaction, CBlockHeader
+import io
 
-class ZMQTest (BitcoinTestFramework):
+class ZMQTest (FabcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
 
@@ -24,14 +26,14 @@ class ZMQTest (BitcoinTestFramework):
         except ImportError:
             raise SkipTest("python3-zmq module not available.")
 
-        # Check that bitcoin has been built with ZMQ enabled
+        # Check that fabcoin has been built with ZMQ enabled
         config = configparser.ConfigParser()
         if not self.options.configfile:
             self.options.configfile = os.path.dirname(__file__) + "/../config.ini"
         config.read_file(open(self.options.configfile))
 
         if not config["components"].getboolean("ENABLE_ZMQ"):
-            raise SkipTest("bitcoind has not been built with zmq enabled.")
+            raise SkipTest("fabcoind has not been built with zmq enabled.")
 
         self.zmqContext = zmq.Context()
         self.zmqSubSocket = self.zmqContext.socket(zmq.SUB)
@@ -46,6 +48,12 @@ class ZMQTest (BitcoinTestFramework):
                        '-zmqpubrawblock=%s' % ip_address, '-zmqpubrawtx=%s' % ip_address], []]
         self.add_nodes(self.num_nodes, self.extra_args)
         self.start_nodes()
+
+    def get_hash_from_structure(self, block_or_tx, data):
+        f = io.BytesIO(data)
+        block_or_tx.deserialize(f)
+        block_or_tx.rehash()
+        return block_or_tx.hash        
 
     def run_test(self):
         try:
@@ -76,7 +84,7 @@ class ZMQTest (BitcoinTestFramework):
         assert_equal(msgSequence, 0) # must be sequence 0 on rawtx
 
         # Check that the rawtx hashes to the hashtx
-        assert_equal(hash256(body), txhash)
+        assert_equal(self.get_hash_from_structure(CTransaction(), body), bytes_to_hex_str(txhash))
 
         self.log.info("Wait for block")
         msg = self.zmqSubSocket.recv_multipart()
@@ -97,7 +105,7 @@ class ZMQTest (BitcoinTestFramework):
         assert_equal(msgSequence, 0) #must be sequence 0 on rawblock
 
         # Check the hash of the rawblock's header matches generate
-        assert_equal(genhashes[0], bytes_to_hex_str(hash256(body[:80])))
+        assert_equal(self.get_hash_from_structure(CBlockHeader(), body), genhashes[0])
 
         self.log.info("Generate 10 blocks (and 10 coinbase txes)")
         n = 10
@@ -117,7 +125,7 @@ class ZMQTest (BitcoinTestFramework):
                 assert_equal(msgSequence, blockcount + 1)
                 blockcount += 1
             if topic == b"rawblock":
-                zmqRawHashed.append(bytes_to_hex_str(hash256(body[:80])))
+                zmqRawHashed.append(self.get_hash_from_structure(CBlockHeader(), body))
                 msgSequence = struct.unpack('<I', msg[-1])[-1]
                 assert_equal(msgSequence, blockcount)
 

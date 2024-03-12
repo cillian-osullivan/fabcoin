@@ -1,15 +1,19 @@
-// Copyright (c) 2012-2016 The Bitcoin Core developers
+// Copyright (c) 2012-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "random.h"
-#include "scheduler.h"
+#include <random.h>
+#include <scheduler.h>
 
-#include "test/test_bitcoin.h"
+#include <test/test_fabcoin.h>
 
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
 #include <boost/test/unit_test.hpp>
+
+void avoidCompilerWarningsDefinedButNotUsedSchedulerTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 BOOST_AUTO_TEST_SUITE(scheduler_tests)
 
@@ -84,7 +88,7 @@ BOOST_AUTO_TEST_CASE(manythreads)
     for (int i = 0; i < 5; i++)
         microThreads.create_thread(boost::bind(&CScheduler::serviceQueue, &microTasks));
 
-    MicroSleep(600);
+    MicroSleep(75);
     now = boost::chrono::system_clock::now();
 
     // More threads and more tasks:
@@ -92,7 +96,7 @@ BOOST_AUTO_TEST_CASE(manythreads)
         microThreads.create_thread(boost::bind(&CScheduler::serviceQueue, &microTasks));
     for (int i = 0; i < 100; i++) {
         boost::chrono::system_clock::time_point t = now + boost::chrono::microseconds(randomMsec(rng));
-        boost::chrono::system_clock::time_point tReschedule = now + boost::chrono::microseconds(500 + randomMsec(rng));
+        boost::chrono::system_clock::time_point tReschedule = now + boost::chrono::microseconds(70 + randomMsec(rng));
         int whichCounter = zeroToNine(rng);
         CScheduler::Function f = boost::bind(&microTask, boost::ref(microTasks),
                                              boost::ref(counterMutex[whichCounter]), boost::ref(counter[whichCounter]),

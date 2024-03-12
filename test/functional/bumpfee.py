@@ -15,10 +15,12 @@ make assumptions about execution order.
 """
 
 from segwit import send_to_witness
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework import blocktools
 from test_framework.mininode import CTransaction
 from test_framework.util import *
+from test_framework.fabcoinconfig import COINBASE_MATURITY
+
 
 import io
 
@@ -29,7 +31,7 @@ WALLET_PASSPHRASE = "test"
 WALLET_PASSPHRASE_TIMEOUT = 3600
 
 
-class BumpFeeTest(BitcoinTestFramework):
+class BumpFeeTest(FabcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
         self.setup_clean_chain = True
@@ -48,10 +50,11 @@ class BumpFeeTest(BitcoinTestFramework):
         peer_node, rbf_node = self.nodes
         rbf_node_address = rbf_node.getnewaddress()
 
-        # fund rbf node with 10 coins of 0.001 btc (100,000 satoshis)
+        # fund rbf node with 10 coins of 0.001 fab (100,000 lius)
         self.log.info("Mining blocks...")
-        peer_node.generate(110)
+        peer_node.generate(COINBASE_MATURITY+10)
         self.sync_all()
+
         for i in range(25):
             peer_node.sendtoaddress(rbf_node_address, 0.001)
         self.sync_all()
@@ -271,10 +274,12 @@ def test_locked_wallet_fails(rbf_node, dest_address):
 def spend_one_input(node, dest_address):
     tx_input = dict(
         sequence=BIP125_SEQUENCE_NUMBER, **next(u for u in node.listunspent() if u["amount"] == Decimal("0.00100000")))
+    #print (tx_input )
     rawtx = node.createrawtransaction(
         [tx_input], {dest_address: Decimal("0.00050000"),
                      node.getrawchangeaddress(): Decimal("0.00049000")})
     signedtx = node.signrawtransaction(rawtx)
+    #print (rawtx)
     txid = node.sendrawtransaction(signedtx["hex"])
     return txid
 
@@ -286,12 +291,12 @@ def submit_block_with_tx(node, tx):
     tip = node.getbestblockhash()
     height = node.getblockcount() + 1
     block_time = node.getblockheader(tip)["mediantime"] + 1
-    block = blocktools.create_block(int(tip, 16), blocktools.create_coinbase(height), block_time)
+    block = blocktools.create_block(int(tip, 16), blocktools.create_coinbase(height), height, block_time)
     block.vtx.append(ctx)
     block.rehash()
     block.hashMerkleRoot = block.calc_merkle_root()
     block.solve()
-    node.submitblock(bytes_to_hex_str(block.serialize(True)))
+    node.submitblock(bytes_to_hex_str(block.serialize()), '', True )
     return block
 
 

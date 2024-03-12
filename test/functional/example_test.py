@@ -24,7 +24,7 @@ from test_framework.mininode import (
     msg_block,
     msg_getdata,
 )
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import (
     assert_equal,
     connect_nodes,
@@ -67,11 +67,11 @@ def custom_function():
 
     If this function is more generally useful for other tests, consider
     moving it to a module in test_framework."""
-    # self.log.info("running custom_function")  # Oops! Can't run self.log outside the BitcoinTestFramework
+    # self.log.info("running custom_function")  # Oops! Can't run self.log outside the FabcoinTestFramework
     pass
 
-class ExampleTest(BitcoinTestFramework):
-    # Each functional test is a subclass of the BitcoinTestFramework class.
+class ExampleTest(FabcoinTestFramework):
+    # Each functional test is a subclass of the FabcoinTestFramework class.
 
     # Override the set_test_params(), add_options(), setup_chain(), setup_network()
     # and setup_nodes() methods to customize the test setup as required.
@@ -126,7 +126,7 @@ class ExampleTest(BitcoinTestFramework):
 
         Define it in a method here because you're going to use it repeatedly.
         If you think it's useful in general, consider moving it to the base
-        BitcoinTestFramework class so other tests can use it."""
+        FabcoinTestFramework class so other tests can use it."""
 
         self.log.info("Running custom_method")
 
@@ -176,7 +176,7 @@ class ExampleTest(BitcoinTestFramework):
             # Use the mininode and blocktools functionality to manually build a block
             # Calling the generate() rpc is easier, but this allows us to exactly
             # control the blocks and transactions.
-            block = create_block(self.tip, create_coinbase(height), self.block_time)
+            block = create_block(self.tip, create_coinbase(height+1), height+1, self.block_time)
             block.solve()
             block_message = msg_block(block)
             # Send message is used to send a P2P message to the node over our NodeConn connection

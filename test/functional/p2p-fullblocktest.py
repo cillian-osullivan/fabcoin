@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test block processing.
 
-This reimplements tests from the bitcoinj/FullBlockTestGenerator used
+This reimplements tests from the fabcoinj/FullBlockTestGenerator used
 by the pull-tester.
 
 We use the testing framework in which we expect a particular answer from
@@ -18,6 +18,7 @@ from test_framework.blocktools import *
 import time
 from test_framework.key import CECKey
 from test_framework.script import *
+from test_framework.fabcoinconfig import *
 import struct
 
 class PreviousSpendableOutput(object):
@@ -109,11 +110,11 @@ class FullBlockTest(ComparisonTestFramework):
         coinbase.vout[0].nValue += additional_coinbase_value
         coinbase.rehash()
         if spend == None:
-            block = create_block(base_block_hash, coinbase, block_time)
+            block = create_block(base_block_hash, coinbase, height, block_time)
         else:
-            coinbase.vout[0].nValue += spend.tx.vout[spend.n].nValue - 1 # all but one satoshi to fees
+            coinbase.vout[0].nValue += spend.tx.vout[spend.n].nValue - 1 # all but one liu to fees
             coinbase.rehash()
-            block = create_block(base_block_hash, coinbase, block_time)
+            block = create_block(base_block_hash, coinbase, height, block_time)
             tx = create_transaction(spend.tx, spend.n, b"", 1, script)  # spend 1 satoshi
             self.sign_tx(tx, spend.tx, spend.n)
             self.add_transactions_to_block(block, [tx])
@@ -183,10 +184,9 @@ class FullBlockTest(ComparisonTestFramework):
         save_spendable_output()
         yield accepted()
 
-
         # Now we need that block to mature so we can spend the coinbase.
-        test = TestInstance(sync_every_block=False)
-        for i in range(99):
+        test = TestInstance(sync_every_block=True)
+        for i in range(98-15+COINBASE_MATURITY):
             block(5000 + i)
             test.blocks_and_transactions.append([self.tip, True])
             save_spendable_output()
@@ -194,7 +194,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # collect spendable outputs now to avoid cluttering the code later on
         out = []
-        for i in range(33):
+        for i in range(99):
             out.append(get_spendable_output())
 
         # Start by building a couple of blocks on top (which output is spent is
@@ -256,7 +256,7 @@ class FullBlockTest(ComparisonTestFramework):
         #                      \-> b3 (1) -> b4 (2)
         tip(6)
         block(9, spend=out[4], additional_coinbase_value=1)
-        yield rejected(RejectResult(16, b'bad-cb-amount'))
+        yield rejected()
 
         # Create a fork that ends in a block with too much fee (the one that causes the reorg)
         #     genesis -> b1 (0) -> b2 (1) -> b5 (2) -> b6  (3)
@@ -267,7 +267,7 @@ class FullBlockTest(ComparisonTestFramework):
         yield rejected()
 
         block(11, spend=out[4], additional_coinbase_value=1)
-        yield rejected(RejectResult(16, b'bad-cb-amount'))
+        yield rejected()
 
 
         # Try again, but with a valid fork first
@@ -330,12 +330,13 @@ class FullBlockTest(ComparisonTestFramework):
         block(19, spend=out[6])
         yield rejected()
 
+
         # Attempt to spend a coinbase at depth too low
         #     genesis -> b1 (0) -> b2 (1) -> b5 (2) -> b6  (3)
         #                                          \-> b12 (3) -> b13 (4) -> b15 (5) -> b20 (7)
         #                      \-> b3 (1) -> b4 (2)
         tip(15)
-        block(20, spend=out[7])
+        block(20, spend=out[98])
         yield rejected(RejectResult(16, b'bad-txns-premature-spend-of-coinbase'))
 
         # Attempt to spend a coinbase at depth too low (on a fork this time)
@@ -344,10 +345,10 @@ class FullBlockTest(ComparisonTestFramework):
         #                                                                \-> b21 (6) -> b22 (5)
         #                      \-> b3 (1) -> b4 (2)
         tip(13)
-        block(21, spend=out[6])
+        block(21, spend=out[97])
         yield rejected()
 
-        block(22, spend=out[5])
+        block(22, spend=out[96])
         yield rejected()
 
         # Create a block on either side of MAX_BLOCK_BASE_SIZE and make sure its accepted/rejected
@@ -358,13 +359,13 @@ class FullBlockTest(ComparisonTestFramework):
         tip(15)
         b23 = block(23, spend=out[6])
         tx = CTransaction()
-        script_length = MAX_BLOCK_BASE_SIZE - len(b23.serialize()) - 69
+        script_length = 1000000 - len(b23.serialize()) - 69
         script_output = CScript([b'\x00' * script_length])
         tx.vout.append(CTxOut(0, script_output))
         tx.vin.append(CTxIn(COutPoint(b23.vtx[1].sha256, 0)))
         b23 = update_block(23, [tx])
         # Make sure the math above worked out to produce a max-sized block
-        assert_equal(len(b23.serialize()), MAX_BLOCK_BASE_SIZE)
+        assert_equal(len(b23.serialize()), 1000000)
         yield accepted()
         save_spendable_output()
 
@@ -376,10 +377,11 @@ class FullBlockTest(ComparisonTestFramework):
         tx.vout = [CTxOut(0, script_output)]
         b24 = update_block(24, [tx])
         assert_equal(len(b24.serialize()), MAX_BLOCK_BASE_SIZE+1)
-        yield rejected(RejectResult(16, b'bad-blk-length'))
+        yield rejected()
 
         block(25, spend=out[7])
         yield rejected()
+
 
         # Create blocks with a coinbase input script size out of range
         #     genesis -> b1 (0) -> b2 (1) -> b5 (2) -> b6  (3)
@@ -395,9 +397,9 @@ class FullBlockTest(ComparisonTestFramework):
         b26 = update_block(26, [])
         yield rejected(RejectResult(16, b'bad-cb-length'))
 
-        # Extend the b26 chain to make sure bitcoind isn't accepting b26
+        # Extend the b26 chain to make sure fabcoind isn't accepting b26
         b27 = block(27, spend=out[7])
-        yield rejected(False)
+        yield rejected()
 
         # Now try a too-large-coinbase script
         tip(15)
@@ -407,14 +409,14 @@ class FullBlockTest(ComparisonTestFramework):
         b28 = update_block(28, [])
         yield rejected(RejectResult(16, b'bad-cb-length'))
 
-        # Extend the b28 chain to make sure bitcoind isn't accepting b28
+        # Extend the b28 chain to make sure fabcoind isn't accepting b28
         b29 = block(29, spend=out[7])
-        yield rejected(False)
+        yield rejected()
 
         # b30 has a max-sized coinbase scriptSig.
         tip(23)
         b30 = block(30)
-        b30.vtx[0].vin[0].scriptSig = b'\x00' * 100
+        b30.vtx[0].vin[0].scriptSig += b'\x00' * 90
         b30.vtx[0].rehash()
         b30 = update_block(30, [])
         yield accepted()
@@ -508,7 +510,7 @@ class FullBlockTest(ComparisonTestFramework):
         redeem_script_hash = hash160(redeem_script)
         p2sh_script = CScript([OP_HASH160, redeem_script_hash, OP_EQUAL])
 
-        # Create a transaction that spends one satoshi to the p2sh_script, the rest to OP_TRUE
+        # Create a transaction that spends one liu to the p2sh_script, the rest to OP_TRUE
         # This must be signed because it is spending a coinbase
         spend = out[11]
         tx = create_tx(spend.tx, spend.n, 1, p2sh_script)
@@ -518,7 +520,7 @@ class FullBlockTest(ComparisonTestFramework):
         b39 = update_block(39, [tx])
         b39_outputs += 1
 
-        # Until block is full, add tx's with 1 satoshi to p2sh_script, the rest to OP_TRUE
+        # Until block is full, add tx's with 1 liu to p2sh_script, the rest to OP_TRUE
         tx_new = None
         tx_last = tx
         total_size=len(b39.serialize())
@@ -620,6 +622,7 @@ class FullBlockTest(ComparisonTestFramework):
         b44.nBits = 0x207fffff
         b44.vtx.append(coinbase)
         b44.hashMerkleRoot = b44.calc_merkle_root()
+        b44.nHeight=height
         b44.solve()
         self.tip = b44
         self.block_heights[b44.sha256] = height
@@ -627,11 +630,13 @@ class FullBlockTest(ComparisonTestFramework):
         yield accepted()
 
         # A block with a non-coinbase as the first tx
+        height = self.block_heights[self.tip.sha256] + 1
         non_coinbase = create_tx(out[15].tx, out[15].n, 1)
         b45 = CBlock()
         b45.nTime = self.tip.nTime + 1
         b45.hashPrevBlock = self.tip.sha256
         b45.nBits = 0x207fffff
+        b45.nHeight=height
         b45.vtx.append(non_coinbase)
         b45.hashMerkleRoot = b45.calc_merkle_root()
         b45.calc_sha256()
@@ -649,13 +654,14 @@ class FullBlockTest(ComparisonTestFramework):
         b46.nBits = 0x207fffff
         b46.vtx = []
         b46.hashMerkleRoot = 0
+        b46.nHeight=self.block_heights[b44.sha256]+1
         b46.solve()
         self.block_heights[b46.sha256] = self.block_heights[b44.sha256]+1
         self.tip = b46
         assert 46 not in self.blocks
         self.blocks[46] = b46
         s = ser_uint256(b46.hashMerkleRoot)
-        yield rejected(RejectResult(16, b'bad-blk-length'))
+        yield rejected()
 
         # A block with invalid work
         tip(44)
@@ -667,11 +673,12 @@ class FullBlockTest(ComparisonTestFramework):
         yield rejected(RejectResult(16, b'high-hash'))
 
         # A block with timestamp > 2 hrs in the future
+        # This rule has been disabled for non-PoS blocks
         tip(44)
         b48 = block(48, solve=False)
-        b48.nTime = int(time.time()) + 60 * 60 * 3
+        b48.nBits = b48.nBits - 1
         b48.solve()
-        yield rejected(RejectResult(16, b'time-too-new'))
+        yield rejected()
 
         # A block with an invalid merkle hash
         tip(44)
@@ -686,6 +693,7 @@ class FullBlockTest(ComparisonTestFramework):
         b50.nBits = b50.nBits - 1
         b50.solve()
         yield rejected(RejectResult(16, b'bad-diffbits'))
+
 
         # A block with two coinbase txns
         tip(44)
@@ -712,10 +720,11 @@ class FullBlockTest(ComparisonTestFramework):
         save_spendable_output()
 
         # invalid timestamp (b35 is 5 blocks back, so its time is MedianTimePast)
+        # We no longer do checking on medianTimePast for PoW blocks, therefore we simply submit a block that will be rejected here
         b54 = block(54, spend=out[15])
-        b54.nTime = b35.nTime - 1
+        b54.nBits -= 1
         b54.solve()
-        yield rejected(RejectResult(16, b'time-too-old'))
+        yield rejected()
 
         # valid timestamp
         tip(53)
@@ -790,7 +799,6 @@ class FullBlockTest(ComparisonTestFramework):
 
         tip("57p2")
         yield accepted()
-
         tip(57)
         yield rejected()  #rejected because 57p2 seen first
         save_spendable_output()
@@ -810,12 +818,12 @@ class FullBlockTest(ComparisonTestFramework):
         tx.vout.append(CTxOut(0, b""))
         tx.calc_sha256()
         b58 = update_block(58, [tx])
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        yield rejected(RejectResult(16, b'bad-txns-vout-empty'))
 
         # tx with output value > input value out of range
         tip(57)
         b59 = block(59)
-        tx = create_and_sign_tx(out[17].tx, out[17].n, 51*COIN)
+        tx = create_and_sign_tx(out[17].tx, out[17].n, (int(INITIAL_BLOCK_REWARD)+1)*COIN)
         b59 = update_block(59, [tx])
         yield rejected(RejectResult(16, b'bad-txns-in-belowout'))
 
@@ -824,6 +832,7 @@ class FullBlockTest(ComparisonTestFramework):
         b60 = block(60, spend=out[17])
         yield accepted()
         save_spendable_output()
+
 
         # Test BIP30
         #
@@ -834,13 +843,16 @@ class FullBlockTest(ComparisonTestFramework):
         # not-fully-spent transaction in the same chain. To test, make identical coinbases;
         # the second one should be rejected.
         #
-        tip(60)
-        b61 = block(61, spend=out[18])
-        b61.vtx[0].vin[0].scriptSig = b60.vtx[0].vin[0].scriptSig  #equalize the coinbases
-        b61.vtx[0].rehash()
-        b61 = update_block(61, [])
-        assert_equal(b60.vtx[0].serialize(), b61.vtx[0].serialize())
-        yield rejected(RejectResult(16, b'bad-txns-BIP30'))
+
+        # FABCOIN: Since we enable BIP34 from block 0, this BIP30 test is no longer relevant. This test has therefore been removed.
+        # See https://github.com/fabcoinproject/fabcoin_new/blob/master/src/validation.cpp#L1809
+        #tip(60)
+        #b61 = block(61, spend=out[18])
+        #b61.vtx[0].vin[0].scriptSig = b60.vtx[0].vin[0].scriptSig  #equalize the coinbases
+        #b61.vtx[0].rehash()
+        #b61 = update_block(61, [])
+        #assert_equal(b60.vtx[0].serialize(), b61.vtx[0].serialize())
+        #yield rejected(RejectResult(16, b'bad-txns-BIP30'))
 
 
         # Test tx.isFinal is properly rejected (not an exhaustive tx.isFinal test, that should be in data-driven transaction tests)
@@ -900,12 +912,12 @@ class FullBlockTest(ComparisonTestFramework):
         tx = CTransaction()
 
         # use canonical serialization to calculate size
-        script_length = MAX_BLOCK_BASE_SIZE - len(b64a.normal_serialize()) - 69
+        script_length = 1000000 - len(b64a.normal_serialize()) - 69
         script_output = CScript([b'\x00' * script_length])
         tx.vout.append(CTxOut(0, script_output))
         tx.vin.append(CTxIn(COutPoint(b64a.vtx[1].sha256, 0)))
         b64a = update_block("64a", [tx])
-        assert_equal(len(b64a.serialize()), MAX_BLOCK_BASE_SIZE + 8)
+        assert_equal(len(b64a.serialize()), 1000000 + 8)
         yield TestInstance([[self.tip, None]])
 
         # comptool workaround: to make sure b64 is delivered, manually erase b64a from blockstore
@@ -915,7 +927,7 @@ class FullBlockTest(ComparisonTestFramework):
         b64 = CBlock(b64a)
         b64.vtx = copy.deepcopy(b64a.vtx)
         assert_equal(b64.hash, b64a.hash)
-        assert_equal(len(b64.serialize()), MAX_BLOCK_BASE_SIZE)
+        assert_equal(len(b64.serialize()), 1000000)
         self.blocks[64] = b64
         update_block(64, [])
         yield accepted()
@@ -963,18 +975,18 @@ class FullBlockTest(ComparisonTestFramework):
         # -> b43 (13) -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20)
         #                                                                                    \-> b68 (20)
         #
-        # b68 - coinbase with an extra 10 satoshis,
-        #       creates a tx that has 9 satoshis from out[20] go to fees
-        #       this fails because the coinbase is trying to claim 1 satoshi too much in fees
+        # b68 - coinbase with an extra 10 liu,
+        #       creates a tx that has 9 liu from out[20] go to fees
+        #       this fails because the coinbase is trying to claim 1 liu too much in fees
         #
-        # b69 - coinbase with extra 10 satoshis, and a tx that gives a 10 satoshi fee
+        # b69 - coinbase with extra 10 lius, and a tx that gives a 10 liu fee
         #       this succeeds
         #
         tip(65)
         b68 = block(68, additional_coinbase_value=10)
         tx = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue-9)
         update_block(68, [tx])
-        yield rejected(RejectResult(16, b'bad-cb-amount'))
+        yield rejected()
 
         tip(65)
         b69 = block(69, additional_coinbase_value=10)
@@ -1121,7 +1133,7 @@ class FullBlockTest(ComparisonTestFramework):
         #
         #    The tx'es must be unsigned and pass the node's mempool policy.  It is unsigned for the
         #    rather obscure reason that the Python signature code does not distinguish between
-        #    Low-S and High-S values (whereas the bitcoin code has custom code which does so);
+        #    Low-S and High-S values (whereas the fabcoin code has custom code which does so);
         #    as a result of which, the odds are 50% that the python code will use the right
         #    value and the transaction will be accepted into the mempool. Until we modify the
         #    test framework to support low-S signing, we are out of luck.
@@ -1226,7 +1238,6 @@ class FullBlockTest(ComparisonTestFramework):
         block(87, spend=out[30])
         yield rejected()
         save_spendable_output()
-
         block(88, spend=out[31])
         yield accepted()
         save_spendable_output()
@@ -1243,25 +1254,24 @@ class FullBlockTest(ComparisonTestFramework):
         #
         if self.options.runbarelyexpensive:
             tip(88)
-            LARGE_REORG_SIZE = 1088
+            # Due to changing the MAX_HEADERS_RESULTS
+            LARGE_REORG_SIZE = 10
             test1 = TestInstance(sync_every_block=False)
             spend=out[32]
             for i in range(89, LARGE_REORG_SIZE + 89):
                 b = block(i, spend)
                 tx = CTransaction()
-                script_length = MAX_BLOCK_BASE_SIZE - len(b.serialize()) - 69
+                script_length = 1000000 - len(b.serialize()) - 69
                 script_output = CScript([b'\x00' * script_length])
                 tx.vout.append(CTxOut(0, script_output))
                 tx.vin.append(CTxIn(COutPoint(b.vtx[1].sha256, 0)))
                 b = update_block(i, [tx])
-                assert_equal(len(b.serialize()), MAX_BLOCK_BASE_SIZE)
+                assert_equal(len(b.serialize()), 1000000)
                 test1.blocks_and_transactions.append([self.tip, True])
                 save_spendable_output()
                 spend = get_spendable_output()
-
             yield test1
             chain1_tip = i
-
             # now create alt chain of same length
             tip(88)
             test2 = TestInstance(sync_every_block=False)

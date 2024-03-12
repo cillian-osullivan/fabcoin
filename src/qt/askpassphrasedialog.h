@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_ASKPASSPHRASEDIALOG_H
-#define BITCOIN_QT_ASKPASSPHRASEDIALOG_H
+#ifndef FABCOIN_QT_ASKPASSPHRASEDIALOG_H
+#define FABCOIN_QT_ASKPASSPHRASEDIALOG_H
 
 #include <QDialog>
 
@@ -21,10 +21,11 @@ class AskPassphraseDialog : public QDialog
 
 public:
     enum Mode {
-        Encrypt,    /**< Ask passphrase twice and encrypt */
-        Unlock,     /**< Ask passphrase and unlock */
-        ChangePass, /**< Ask old passphrase + new passphrase twice */
-        Decrypt     /**< Ask passphrase and decrypt wallet */
+        Encrypt,        /**< Ask passphrase twice and encrypt */
+        UnlockStaking,  /**< Ask passphrase and unlock staking only */
+        Unlock,         /**< Ask passphrase and unlock */
+        ChangePass,     /**< Ask old passphrase + new passphrase twice */
+        Decrypt         /**< Ask passphrase and decrypt wallet */
     };
 
     explicit AskPassphraseDialog(Mode mode, QWidget *parent);
@@ -49,4 +50,4 @@ protected:
     bool eventFilter(QObject *object, QEvent *event);
 };
 
-#endif // BITCOIN_QT_ASKPASSPHRASEDIALOG_H
+#endif // FABCOIN_QT_ASKPASSPHRASEDIALOG_H

@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test BIP68 implementation."""
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 from test_framework.blocktools import *
 
@@ -16,7 +16,7 @@ SEQUENCE_LOCKTIME_MASK = 0x0000ffff
 # RPC error for non-BIP68 final transactions
 NOT_FINAL_ERROR = "64: non-BIP68-final"
 
-class BIP68Test(BitcoinTestFramework):
+class BIP68Test(FabcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
         self.extra_args = [[], ["-acceptnonstdtxn=0"]]
@@ -25,7 +25,7 @@ class BIP68Test(BitcoinTestFramework):
         self.relayfee = self.nodes[0].getnetworkinfo()["relayfee"]
 
         # Generate some coins
-        self.nodes[0].generate(110)
+        self.nodes[0].generate(810)
 
         self.log.info("Running test disable flag")
         self.test_disable_flag()
@@ -53,7 +53,7 @@ class BIP68Test(BitcoinTestFramework):
     def test_disable_flag(self):
         # Create some unconfirmed inputs
         new_addr = self.nodes[0].getnewaddress()
-        self.nodes[0].sendtoaddress(new_addr, 2) # send 2 BTC
+        self.nodes[0].sendtoaddress(new_addr, 2) # send 2 FAB
 
         utxos = self.nodes[0].listunspent(0, 0)
         assert(len(utxos) > 0)
@@ -105,7 +105,7 @@ class BIP68Test(BitcoinTestFramework):
         addresses = []
         while len(addresses) < max_outputs:
             addresses.append(self.nodes[0].getnewaddress())
-        while len(self.nodes[0].listunspent()) < 200:
+        while len(self.nodes[0].listunspent()) < 900:
             import random
             random.shuffle(addresses)
             num_outputs = random.randint(1, max_outputs)
@@ -242,9 +242,9 @@ class BIP68Test(BitcoinTestFramework):
         self.nodes[0].prioritisetransaction(txid=tx2.hash, fee_delta=int(-self.relayfee*COIN))
         cur_time = int(time.time())
         for i in range(10):
-            self.nodes[0].setmocktime(cur_time + 600)
+            self.nodes[0].setmocktime(cur_time + 75)
             self.nodes[0].generate(1)
-            cur_time += 600
+            cur_time += 75
 
         assert(tx2.hash in self.nodes[0].getrawmempool())
 
@@ -255,7 +255,7 @@ class BIP68Test(BitcoinTestFramework):
         self.nodes[0].prioritisetransaction(txid=tx2.hash, fee_delta=int(self.relayfee*COIN))
 
         # Advance the time on the node so that we can test timelocks
-        self.nodes[0].setmocktime(cur_time+600)
+        self.nodes[0].setmocktime(cur_time+75)
         self.nodes[0].generate(1)
         assert(tx2.hash not in self.nodes[0].getrawmempool())
 
@@ -302,13 +302,13 @@ class BIP68Test(BitcoinTestFramework):
         tip = int(self.nodes[0].getblockhash(self.nodes[0].getblockcount()-1), 16)
         height = self.nodes[0].getblockcount()
         for i in range(2):
-            block = create_block(tip, create_coinbase(height), cur_time)
+            block = create_block(tip, create_coinbase(height), height, cur_time)
             block.nVersion = 3
             block.rehash()
             block.solve()
             tip = block.sha256
             height += 1
-            self.nodes[0].submitblock(ToHex(block))
+            self.nodes[0].submitblock(ToHex(block), '', True)
             cur_time += 1
 
         mempool = self.nodes[0].getrawmempool()
@@ -357,14 +357,14 @@ class BIP68Test(BitcoinTestFramework):
 
         # make a block that violates bip68; ensure that the tip updates
         tip = int(self.nodes[0].getbestblockhash(), 16)
-        block = create_block(tip, create_coinbase(self.nodes[0].getblockcount()+1))
+        block = create_block(tip, create_coinbase(self.nodes[0].getblockcount()+1), self.nodes[0].getblockcount()+1)
         block.nVersion = 3
         block.vtx.extend([tx1, tx2, tx3])
         block.hashMerkleRoot = block.calc_merkle_root()
         block.rehash()
         block.solve()
 
-        self.nodes[0].submitblock(ToHex(block))
+        self.nodes[0].submitblock(ToHex(block),'', True)
         assert_equal(self.nodes[0].getbestblockhash(), block.hash)
 
     def activateCSV(self):

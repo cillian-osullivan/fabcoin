@@ -1,20 +1,24 @@
-// Copyright (c) 2012-2016 The Bitcoin Core developers
+// Copyright (c) 2012-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "rpc/server.h"
-#include "rpc/client.h"
+#include <rpc/server.h>
+#include <rpc/client.h>
 
-#include "base58.h"
-#include "core_io.h"
-#include "netbase.h"
+#include <base58.h>
+#include <core_io.h>
+#include <netbase.h>
 
-#include "test/test_bitcoin.h"
+#include <test/test_fabcoin.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/test/unit_test.hpp>
 
 #include <univalue.h>
+
+void avoidCompilerWarningsDefinedButNotUsedMinerRPCTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 UniValue CallRPC(std::string args)
 {
@@ -232,7 +236,7 @@ BOOST_AUTO_TEST_CASE(json_parse_errors)
     // Invalid, trailing garbage
     BOOST_CHECK_THROW(ParseNonRFCJSONValue("1.0sds"), std::runtime_error);
     BOOST_CHECK_THROW(ParseNonRFCJSONValue("1.0]"), std::runtime_error);
-    // BTC addresses should fail parsing
+    // FAB addresses should fail parsing
     BOOST_CHECK_THROW(ParseNonRFCJSONValue("175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W"), std::runtime_error);
     BOOST_CHECK_THROW(ParseNonRFCJSONValue("3J98t1WpEZ73CNmQviecrnyiWrnqRhWNL"), std::runtime_error);
 }
@@ -254,14 +258,14 @@ BOOST_AUTO_TEST_CASE(rpc_ban)
     ar = r.get_array();
     BOOST_CHECK_EQUAL(ar.size(), 0);
 
-    BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 127.0.0.0/24 add 1607731200 true")));
+    BOOST_CHECK_NO_THROW(r = CallRPC(std::string("setban 127.0.0.0/24 add 1697878084 true")));
     BOOST_CHECK_NO_THROW(r = CallRPC(std::string("listbanned")));
     ar = r.get_array();
     o1 = ar[0].get_obj();
     adr = find_value(o1, "address");
     UniValue banned_until = find_value(o1, "banned_until");
     BOOST_CHECK_EQUAL(adr.get_str(), "127.0.0.0/24");
-    BOOST_CHECK_EQUAL(banned_until.get_int64(), 1607731200); // absolute time check
+    BOOST_CHECK_EQUAL(banned_until.get_int64(), 1697878084); // absolute time check
 
     BOOST_CHECK_NO_THROW(CallRPC(std::string("clearbanned")));
 

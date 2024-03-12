@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CHECKQUEUE_H
-#define BITCOIN_CHECKQUEUE_H
+#ifndef FABCOIN_CHECKQUEUE_H
+#define FABCOIN_CHECKQUEUE_H
 
-#include "sync.h"
+#include <sync.h>
 
 #include <algorithm>
 #include <vector>
@@ -121,7 +121,7 @@ private:
             // execute work
             for (T& check : vChecks)
                 if (fOk)
-                    fOk = check();
+                    fOk = check(nullptr);
             vChecks.clear();
         } while (true);
     }
@@ -214,4 +214,4 @@ public:
     }
 };
 
-#endif // BITCOIN_CHECKQUEUE_H
+#endif // FABCOIN_CHECKQUEUE_H

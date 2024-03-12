@@ -1,22 +1,28 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include <config/fabcoin-config.h>
 #endif
 
-#include "askpassphrasedialog.h"
-#include "ui_askpassphrasedialog.h"
+#include <askpassphrasedialog.h>
+#include <ui_askpassphrasedialog.h>
 
-#include "guiconstants.h"
-#include "walletmodel.h"
+#include <guiconstants.h>
+#include <walletmodel.h>
+#include <wallet/wallet.h>
+#include <styleSheet.h>
 
-#include "support/allocators/secure.h"
+#include <support/allocators/secure.h>
 
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QPushButton>
+
+void avoidCompilerWarningsDefinedButNotUsedAskPassPhraseDialog() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
     QDialog(parent),
@@ -26,6 +32,9 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
     fCapsLock(false)
 {
     ui->setupUi(this);
+
+    SetObjectStyleSheet(ui->buttonBox->button(QDialogButtonBox::Cancel), StyleSheetNames::ButtonWhite);
+    SetObjectStyleSheet(ui->buttonBox->button(QDialogButtonBox::Ok), StyleSheetNames::ButtonBlue);
 
     ui->passEdit1->setMinimumSize(ui->passEdit1->sizeHint());
     ui->passEdit2->setMinimumSize(ui->passEdit2->sizeHint());
@@ -40,6 +49,9 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
     ui->passEdit2->installEventFilter(this);
     ui->passEdit3->installEventFilter(this);
 
+    ui->stakingCheckBox->setChecked(fWalletUnlockStakingOnly);
+    ui->stakingCheckBox->hide();
+
     switch(mode)
     {
         case Encrypt: // Ask passphrase x2
@@ -48,6 +60,9 @@ AskPassphraseDialog::AskPassphraseDialog(Mode _mode, QWidget *parent) :
             ui->passEdit1->hide();
             setWindowTitle(tr("Encrypt wallet"));
             break;
+        case UnlockStaking:
+            ui->stakingCheckBox->setChecked(true);
+            ui->stakingCheckBox->show();
         case Unlock: // Ask passphrase
             ui->warningLabel->setText(tr("This operation needs your wallet passphrase to unlock the wallet."));
             ui->passLabel2->hide();
@@ -111,7 +126,7 @@ void AskPassphraseDialog::accept()
             break;
         }
         QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm wallet encryption"),
-                 tr("Warning: If you encrypt your wallet and lose your passphrase, you will <b>LOSE ALL OF YOUR BITCOINS</b>!") + "<br><br>" + tr("Are you sure you wish to encrypt your wallet?"),
+                 tr("Warning: If you encrypt your wallet and lose your passphrase, you will <b>LOSE ALL OF YOUR FABCOINS</b>!") + "<br><br>" + tr("Are you sure you wish to encrypt your wallet?"),
                  QMessageBox::Yes|QMessageBox::Cancel,
                  QMessageBox::Cancel);
         if(retval == QMessageBox::Yes)
@@ -124,7 +139,7 @@ void AskPassphraseDialog::accept()
                                          "<qt>" +
                                          tr("%1 will close now to finish the encryption process. "
                                          "Remember that encrypting your wallet cannot fully protect "
-                                         "your bitcoins from being stolen by malware infecting your computer.").arg(tr(PACKAGE_NAME)) +
+                                         "your fabcoins from being stolen by malware infecting your computer.").arg(tr(PACKAGE_NAME)) +
                                          "<br><br><b>" +
                                          tr("IMPORTANT: Any previous backups you have made of your wallet file "
                                          "should be replaced with the newly generated, encrypted wallet file. "
@@ -151,6 +166,7 @@ void AskPassphraseDialog::accept()
             QDialog::reject(); // Cancelled
         }
         } break;
+    case UnlockStaking:
     case Unlock:
         if(!model->setWalletLocked(false, oldpass))
         {
@@ -159,6 +175,7 @@ void AskPassphraseDialog::accept()
         }
         else
         {
+            fWalletUnlockStakingOnly = ui->stakingCheckBox->isChecked();
             QDialog::accept(); // Success
         }
         break;
@@ -206,6 +223,7 @@ void AskPassphraseDialog::textChanged()
     case Encrypt: // New passphrase x2
         acceptable = !ui->passEdit2->text().isEmpty() && !ui->passEdit3->text().isEmpty();
         break;
+    case UnlockStaking:
     case Unlock: // Old passphrase x1
     case Decrypt:
         acceptable = !ui->passEdit1->text().isEmpty();

@@ -19,6 +19,8 @@ import time
 from . import coverage
 from .authproxy import AuthServiceProxy, JSONRPCException
 
+from .fabcoinconfig import COINBASE_MATURITY
+
 logger = logging.getLogger("TestFramework.utils")
 
 # Assert functions
@@ -28,10 +30,10 @@ def assert_fee_amount(fee, tx_size, fee_per_kB):
     """Assert the fee was in range"""
     target_fee = tx_size * fee_per_kB / 1000
     if fee < target_fee:
-        raise AssertionError("Fee of %s BTC too low! (Should be %s BTC)" % (str(fee), str(target_fee)))
+        raise AssertionError("Fee of %s FAB too low! (Should be %s FAB)" % (str(fee), str(target_fee)))
     # allow the wallet's estimation to be at most 2 bytes off
     if fee > (tx_size + 2) * fee_per_kB / 1000:
-        raise AssertionError("Fee of %s BTC too high! (Should be %s BTC)" % (str(fee), str(target_fee)))
+        raise AssertionError("Fee of %s FAB too high! (Should be %s FAB)" % (str(fee), str(target_fee)))
 
 def assert_equal(thing1, thing2, *args):
     if thing1 != thing2 or any(thing1 != arg for arg in args):
@@ -172,7 +174,7 @@ def assert_array_result(object_array, to_match, expected, should_not_find=False)
 ###################
 
 def check_json_precision():
-    """Make sure json library being used does not lose precision converting BTC values"""
+    """Make sure json library being used does not lose precision converting FAB values"""
     n = Decimal("20000000.00000003")
     satoshis = int(json.loads(json.dumps(float(n))) * 1.0e8)
     if satoshis != 2000000000000003:
@@ -287,7 +289,7 @@ def initialize_datadir(dirname, n):
     datadir = os.path.join(dirname, "node" + str(n))
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
-    with open(os.path.join(datadir, "bitcoin.conf"), 'w', encoding='utf8') as f:
+    with open(os.path.join(datadir, "fabcoin.conf"), 'w', encoding='utf8') as f:
         f.write("regtest=1\n")
         f.write("port=" + str(p2p_port(n)) + "\n")
         f.write("rpcport=" + str(rpc_port(n)) + "\n")
@@ -300,8 +302,8 @@ def get_datadir_path(dirname, n):
 def get_auth_cookie(datadir):
     user = None
     password = None
-    if os.path.isfile(os.path.join(datadir, "bitcoin.conf")):
-        with open(os.path.join(datadir, "bitcoin.conf"), 'r', encoding='utf8') as f:
+    if os.path.isfile(os.path.join(datadir, "fabcoin.conf")):
+        with open(os.path.join(datadir, "fabcoin.conf"), 'r', encoding='utf8') as f:
             for line in f:
                 if line.startswith("rpcuser="):
                     assert user is None  # Ensure that there is only one rpcuser line
@@ -353,7 +355,7 @@ def connect_nodes_bi(nodes, a, b):
     connect_nodes(nodes[a], b)
     connect_nodes(nodes[b], a)
 
-def sync_blocks(rpc_connections, *, wait=1, timeout=60):
+def sync_blocks(rpc_connections, *, wait=1, timeout=120):
     """
     Wait until everybody has the same tip.
 
@@ -378,7 +380,7 @@ def sync_blocks(rpc_connections, *, wait=1, timeout=60):
     raise AssertionError("Block sync to height {} timed out:{}".format(
                          maxheight, "".join("\n  {!r}".format(tip) for tip in tips)))
 
-def sync_chain(rpc_connections, *, wait=1, timeout=60):
+def sync_chain(rpc_connections, *, wait=1, timeout=120):
     """
     Wait until everybody has the same best block
     """
@@ -477,7 +479,7 @@ def random_transaction(nodes, amount, min_fee, fee_increment, fee_variants):
 # Helper to create at least "count" utxos
 # Pass in a fee that is sufficient for relay and mining new transactions.
 def create_confirmed_utxos(fee, node, count):
-    to_generate = int(0.5 * count) + 101
+    to_generate = int(0.5 * count) + COINBASE_MATURITY+1
     while to_generate > 0:
         node.generate(min(25, to_generate))
         to_generate -= 25

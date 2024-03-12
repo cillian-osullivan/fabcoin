@@ -1,23 +1,27 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "base58.h"
+#include <base58.h>
 
-#include "data/base58_encode_decode.json.h"
-#include "data/base58_keys_invalid.json.h"
-#include "data/base58_keys_valid.json.h"
+#include <data/base58_encode_decode.json.h>
+#include <data/base58_keys_invalid.json.h>
+#include <data/base58_keys_valid.json.h>
 
-#include "key.h"
-#include "script/script.h"
-#include "uint256.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "test/test_bitcoin.h"
+#include <key.h>
+#include <script/script.h>
+#include <uint256.h>
+#include <util.h>
+#include <utilstrencodings.h>
+#include <test/test_fabcoin.h>
 
 #include <boost/test/unit_test.hpp>
 
 #include <univalue.h>
+
+void avoidCompilerWarningsDefinedButNotUsedBase58Tests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 extern UniValue read_json(const std::string& jsondata);
 
@@ -120,8 +124,8 @@ public:
 BOOST_AUTO_TEST_CASE(base58_keys_valid_parse)
 {
     UniValue tests = read_json(std::string(json_tests::base58_keys_valid, json_tests::base58_keys_valid + sizeof(json_tests::base58_keys_valid)));
-    CBitcoinSecret secret;
-    CBitcoinAddress addr;
+    CFabcoinSecret secret;
+    CFabcoinAddress addr;
     SelectParams(CBaseChainParams::MAIN);
 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
@@ -145,7 +149,7 @@ BOOST_AUTO_TEST_CASE(base58_keys_valid_parse)
         {
             bool isCompressed = find_value(metadata, "isCompressed").get_bool();
             // Must be valid private key
-            // Note: CBitcoinSecret::SetString tests isValid, whereas CBitcoinAddress does not!
+            // Note: CFabcoinSecret::SetString tests isValid, whereas CFabcoinAddress does not!
             BOOST_CHECK_MESSAGE(secret.SetString(exp_base58string), "!SetString:"+ strTest);
             BOOST_CHECK_MESSAGE(secret.IsValid(), "!IsValid:" + strTest);
             CKey privkey = secret.GetKey();
@@ -201,7 +205,7 @@ BOOST_AUTO_TEST_CASE(base58_keys_valid_gen)
             CKey key;
             key.Set(exp_payload.begin(), exp_payload.end(), isCompressed);
             assert(key.IsValid());
-            CBitcoinSecret secret;
+            CFabcoinSecret secret;
             secret.SetKey(key);
             BOOST_CHECK_MESSAGE(secret.ToString() == exp_base58string, "result mismatch: " + strTest);
         }
@@ -226,14 +230,14 @@ BOOST_AUTO_TEST_CASE(base58_keys_valid_gen)
                 BOOST_ERROR("Bad addrtype: " << strTest);
                 continue;
             }
-            CBitcoinAddress addrOut;
+            CFabcoinAddress addrOut;
             BOOST_CHECK_MESSAGE(addrOut.Set(dest), "encode dest: " + strTest);
             BOOST_CHECK_MESSAGE(addrOut.ToString() == exp_base58string, "mismatch: " + strTest);
         }
     }
 
     // Visiting a CNoDestination must fail
-    CBitcoinAddress dummyAddr;
+    CFabcoinAddress dummyAddr;
     CTxDestination nodest = CNoDestination();
     BOOST_CHECK(!dummyAddr.Set(nodest));
 
@@ -244,8 +248,8 @@ BOOST_AUTO_TEST_CASE(base58_keys_valid_gen)
 BOOST_AUTO_TEST_CASE(base58_keys_invalid)
 {
     UniValue tests = read_json(std::string(json_tests::base58_keys_invalid, json_tests::base58_keys_invalid + sizeof(json_tests::base58_keys_invalid))); // Negative testcases
-    CBitcoinSecret secret;
-    CBitcoinAddress addr;
+    CFabcoinSecret secret;
+    CFabcoinAddress addr;
 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         UniValue test = tests[idx];

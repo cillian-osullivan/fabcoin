@@ -1,24 +1,25 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include <config/fabcoin-config.h>
 #endif
 
-#include "optionsdialog.h"
-#include "ui_optionsdialog.h"
+#include <optionsdialog.h>
+#include <ui_optionsdialog.h>
 
-#include "bitcoinunits.h"
-#include "guiutil.h"
-#include "optionsmodel.h"
+#include <fabcoinunits.h>
+#include <guiutil.h>
+#include <optionsmodel.h>
 
-#include "validation.h" // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
-#include "netbase.h"
-#include "txdb.h" // for -dbcache defaults
+#include <validation.h> // for DEFAULT_SCRIPTCHECK_THREADS and MAX_SCRIPTCHECK_THREADS
+#include <netbase.h>
+#include <txdb.h> // for -dbcache defaults
+#include <styleSheet.h>
 
 #ifdef ENABLE_WALLET
-#include "wallet/wallet.h" // for CWallet::GetRequiredFee()
+#include <wallet/wallet.h> // for CWallet::GetRequiredFee()
 #endif
 
 #include <QDataWidgetMapper>
@@ -28,6 +29,10 @@
 #include <QMessageBox>
 #include <QTimer>
 
+void avoidCompilerWarningsDefinedButNotUsedOptionsDialog() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
+
 OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     QDialog(parent),
     ui(new Ui::OptionsDialog),
@@ -35,6 +40,11 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     mapper(0)
 {
     ui->setupUi(this);
+
+    SetObjectStyleSheet(ui->resetButton, StyleSheetNames::ButtonWhite);
+    SetObjectStyleSheet(ui->openFabcoinConfButton, StyleSheetNames::ButtonWhite);
+    SetObjectStyleSheet(ui->okButton, StyleSheetNames::ButtonBlue);
+    SetObjectStyleSheet(ui->cancelButton, StyleSheetNames::ButtonBlue);
 
     /* Main elements init */
     ui->databaseCache->setMinimum(nMinDbCache);
@@ -48,19 +58,27 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
 #endif
 
     ui->proxyIp->setEnabled(false);
+    ui->proxyIpLabel->setEnabled(false);
     ui->proxyPort->setEnabled(false);
+    ui->proxyPortLabel->setEnabled(false);
     ui->proxyPort->setValidator(new QIntValidator(1, 65535, this));
 
     ui->proxyIpTor->setEnabled(false);
+    ui->proxyIpTorLabel->setEnabled(false);
     ui->proxyPortTor->setEnabled(false);
+    ui->proxyPortTorLabel->setEnabled(false);
     ui->proxyPortTor->setValidator(new QIntValidator(1, 65535, this));
 
     connect(ui->connectSocks, SIGNAL(toggled(bool)), ui->proxyIp, SLOT(setEnabled(bool)));
+    connect(ui->connectSocks, SIGNAL(toggled(bool)), ui->proxyIpLabel, SLOT(setEnabled(bool)));
     connect(ui->connectSocks, SIGNAL(toggled(bool)), ui->proxyPort, SLOT(setEnabled(bool)));
+    connect(ui->connectSocks, SIGNAL(toggled(bool)), ui->proxyPortLabel, SLOT(setEnabled(bool)));
     connect(ui->connectSocks, SIGNAL(toggled(bool)), this, SLOT(updateProxyValidationState()));
 
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), ui->proxyIpTor, SLOT(setEnabled(bool)));
+    connect(ui->connectSocksTor, SIGNAL(toggled(bool)), ui->proxyIpTorLabel, SLOT(setEnabled(bool)));
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), ui->proxyPortTor, SLOT(setEnabled(bool)));
+    connect(ui->connectSocksTor, SIGNAL(toggled(bool)), ui->proxyPortTorLabel, SLOT(setEnabled(bool)));
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), this, SLOT(updateProxyValidationState()));
 
     /* Window elements init */
@@ -77,10 +95,10 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     /* Display elements init */
     QDir translations(":translations");
 
-    ui->bitcoinAtStartup->setToolTip(ui->bitcoinAtStartup->toolTip().arg(tr(PACKAGE_NAME)));
-    ui->bitcoinAtStartup->setText(ui->bitcoinAtStartup->text().arg(tr(PACKAGE_NAME)));
+    ui->fabcoinAtStartup->setToolTip(ui->fabcoinAtStartup->toolTip().arg(tr(PACKAGE_NAME)));
+    ui->fabcoinAtStartup->setText(ui->fabcoinAtStartup->text().arg(tr(PACKAGE_NAME)));
 
-    ui->openBitcoinConfButton->setToolTip(ui->openBitcoinConfButton->toolTip().arg(tr(PACKAGE_NAME)));
+    ui->openFabcoinConfButton->setToolTip(ui->openFabcoinConfButton->toolTip().arg(tr(PACKAGE_NAME)));
 
     ui->lang->setToolTip(ui->lang->toolTip().arg(tr(PACKAGE_NAME)));
     ui->lang->addItem(QString("(") + tr("default") + QString(")"), QVariant(""));
@@ -114,7 +132,7 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     ui->thirdPartyTxUrls->setPlaceholderText("https://example.com/tx/%s");
 #endif
 
-    ui->unit->setModel(new BitcoinUnits(this));
+    ui->unit->setModel(new FabcoinUnits(this));
 
     /* Widget-to-option mapper */
     mapper = new QDataWidgetMapper(this);
@@ -161,6 +179,7 @@ void OptionsDialog::setModel(OptionsModel *_model)
 
     /* Main */
     connect(ui->databaseCache, SIGNAL(valueChanged(int)), this, SLOT(showRestartWarning()));
+    connect(ui->logEvents, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
     connect(ui->threadsScriptVerif, SIGNAL(valueChanged(int)), this, SLOT(showRestartWarning()));
     /* Wallet */
     connect(ui->spendZeroConfChange, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
@@ -176,13 +195,18 @@ void OptionsDialog::setModel(OptionsModel *_model)
 void OptionsDialog::setMapper()
 {
     /* Main */
-    mapper->addMapping(ui->bitcoinAtStartup, OptionsModel::StartAtStartup);
+    mapper->addMapping(ui->fabcoinAtStartup, OptionsModel::StartAtStartup);
     mapper->addMapping(ui->threadsScriptVerif, OptionsModel::ThreadsScriptVerif);
     mapper->addMapping(ui->databaseCache, OptionsModel::DatabaseCache);
+    mapper->addMapping(ui->logEvents, OptionsModel::LogEvents);
+    mapper->addMapping(ui->reserveBalance, OptionsModel::ReserveBalance);
 
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
+    mapper->addMapping(ui->zeroBalanceAddressToken, OptionsModel::ZeroBalanceAddressToken);
+    mapper->addMapping(ui->notUseChangeAddress, OptionsModel::NotUseChangeAddress);
+    mapper->addMapping(ui->checkForUpdates, OptionsModel::CheckForUpdates);
 
     /* Network */
     mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
@@ -232,7 +256,7 @@ void OptionsDialog::on_resetButton_clicked()
     }
 }
 
-void OptionsDialog::on_openBitcoinConfButton_clicked()
+void OptionsDialog::on_openFabcoinConfButton_clicked()
 {
     /* explain the purpose of the config file */
     QMessageBox::information(this, tr("Configuration options"),
@@ -240,7 +264,7 @@ void OptionsDialog::on_openBitcoinConfButton_clicked()
            "Additionally, any command-line options will override this configuration file."));
 
     /* show an error if there was some problem opening the file */
-    if (!GUIUtil::openBitcoinConf())
+    if (!GUIUtil::openFabcoinConf())
         QMessageBox::critical(this, tr("Error"), tr("The configuration file could not be opened."));
 }
 

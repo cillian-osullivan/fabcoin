@@ -1,13 +1,13 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_STREAMS_H
-#define BITCOIN_STREAMS_H
+#ifndef FABCOIN_STREAMS_H
+#define FABCOIN_STREAMS_H
 
-#include "support/allocators/zeroafterfree.h"
-#include "serialize.h"
+#include <support/allocators/zeroafterfree.h>
+#include <serialize.h>
 
 #include <algorithm>
 #include <assert.h>
@@ -462,7 +462,7 @@ private:
     const int nType;
     const int nVersion;
 
-    FILE* file;	
+    FILE* file;
 
 public:
     CAutoFile(FILE* filenew, int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn)
@@ -706,4 +706,4 @@ public:
     }
 };
 
-#endif // BITCOIN_STREAMS_H
+#endif // FABCOIN_STREAMS_H

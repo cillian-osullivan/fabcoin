@@ -4,14 +4,15 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test Hierarchical Deterministic wallet function."""
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import (
     assert_equal,
     connect_nodes_bi,
 )
+from test_framework.fabcoinconfig import COINBASE_MATURITY
 import shutil
 
-class WalletHDTest(BitcoinTestFramework):
+class WalletHDTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
@@ -45,7 +46,7 @@ class WalletHDTest(BitcoinTestFramework):
 
         # Derive some HD addresses and remember the last
         # Also send funds to each add
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(COINBASE_MATURITY+1)
         hd_add = None
         num_hd_adds = 300
         for i in range(num_hd_adds):

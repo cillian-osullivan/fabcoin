@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the zapwallettxes functionality.
 
-- start two bitcoind nodes
+- start two fabcoind nodes
 - create two transactions on node 0 - one is confirmed and one is unconfirmed.
 - restart node 0 and verify that both the confirmed and the unconfirmed
   transactions are still available.
@@ -14,23 +14,24 @@
   transactions are still available, but that the unconfirmed transaction has
   been zapped.
 """
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
     wait_until,
 )
+from test_framework.fabcoinconfig import COINBASE_MATURITY
 
-class ZapWalletTXesTest (BitcoinTestFramework):
+class ZapWalletTXesTest (FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
 
     def run_test(self):
         self.log.info("Mining blocks...")
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(1+1)
         self.sync_all()
-        self.nodes[1].generate(100)
+        self.nodes[1].generate(COINBASE_MATURITY)
         self.sync_all()
 
         # This transaction will be confirmed

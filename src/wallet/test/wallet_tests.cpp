@@ -1,23 +1,31 @@
-// Copyright (c) 2012-2016 The Bitcoin Core developers
+// Copyright (c) 2012-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "wallet/wallet.h"
+#include <wallet/wallet.h>
 
 #include <set>
 #include <stdint.h>
 #include <utility>
 #include <vector>
 
-#include "consensus/validation.h"
-#include "rpc/server.h"
-#include "test/test_bitcoin.h"
-#include "validation.h"
-#include "wallet/coincontrol.h"
-#include "wallet/test/wallet_test_fixture.h"
+#include <consensus/validation.h>
+#include <consensus/consensus.h>
+#include <rpc/server.h>
+#include <test/test_fabcoin.h>
+#include <validation.h>
+#include <wallet/coincontrol.h>
+#include <wallet/test/wallet_test_fixture.h>
 
 #include <boost/test/unit_test.hpp>
 #include <univalue.h>
+
+#include <timedata.h>
+#include <random.h>
+
+void avoidCompilerWarningsDefinedButNotUsedTransactionWalletTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 extern CWallet* pwalletMain;
 
@@ -189,11 +197,11 @@ BOOST_AUTO_TEST_CASE(coin_selection_tests)
         add_coin( 3*COIN);
         add_coin( 4*COIN); // now we have 5+6+7+8+18+20+30+100+200+300+400 = 1094 cents
         BOOST_CHECK( testWallet.SelectCoinsMinConf(95 * CENT, 1, 1, 0, vCoins, setCoinsRet, nValueRet));
-        BOOST_CHECK_EQUAL(nValueRet, 1 * COIN);  // we should get 1 BTC in 1 coin
+        BOOST_CHECK_EQUAL(nValueRet, 1 * COIN);  // we should get 1 FAB in 1 coin
         BOOST_CHECK_EQUAL(setCoinsRet.size(), 1U);
 
         BOOST_CHECK( testWallet.SelectCoinsMinConf(195 * CENT, 1, 1, 0, vCoins, setCoinsRet, nValueRet));
-        BOOST_CHECK_EQUAL(nValueRet, 2 * COIN);  // we should get 2 BTC in 1 coin
+        BOOST_CHECK_EQUAL(nValueRet, 2 * COIN);  // we should get 2 FAB in 1 coin
         BOOST_CHECK_EQUAL(setCoinsRet.size(), 1U);
 
         // empty the wallet and start again, now with fractions of a cent, to test small change avoidance
@@ -370,7 +378,7 @@ static void AddKey(CWallet& wallet, const CKey& key)
     wallet.AddKeyPubKey(key, key.GetPubKey());
 }
 
-BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
+BOOST_FIXTURE_TEST_CASE(rescan, TestChain800Setup)
 {
     LOCK(cs_main);
 
@@ -387,7 +395,7 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
         CWallet wallet;
         AddKey(wallet, coinbaseKey);
         BOOST_CHECK_EQUAL(nullBlock, wallet.ScanForWalletTransactions(oldTip));
-        BOOST_CHECK_EQUAL(wallet.GetImmatureBalance(), 100 * COIN);
+        BOOST_CHECK_EQUAL(wallet.GetImmatureBalance(), 2* INITIAL_BLOCK_REWARD_REGTEST*COIN);
     }
 
     // Prune the older block file.
@@ -400,7 +408,7 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
         CWallet wallet;
         AddKey(wallet, coinbaseKey);
         BOOST_CHECK_EQUAL(oldTip, wallet.ScanForWalletTransactions(oldTip));
-        BOOST_CHECK_EQUAL(wallet.GetImmatureBalance(), 50 * COIN);
+        BOOST_CHECK_EQUAL(wallet.GetImmatureBalance(), INITIAL_BLOCK_REWARD_REGTEST*COIN);
     }
 
     // Verify importmulti RPC returns failure for a key whose creation time is
@@ -435,7 +443,7 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
                       "timestamp %d. There was an error reading a block from time %d, which is after or within %d "
                       "seconds of key creation, and could contain transactions pertaining to the key. As a result, "
                       "transactions and coins using this key may not appear in the wallet. This error could be caused "
-                      "by pruning or data corruption (see bitcoind log for details) and could be dealt with by "
+                      "by pruning or data corruption (see fabcoind log for details) and could be dealt with by "
                       "downloading and rescanning the relevant blocks (see -reindex and -rescan "
                       "options).\"}},{\"success\":true}]",
                               0, oldTip->GetBlockTimeMax(), TIMESTAMP_WINDOW));
@@ -447,7 +455,7 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
 // greater or equal than key birthday. Previously there was a bug where
 // importwallet RPC would start the scan at the latest block with timestamp less
 // than or equal to key birthday.
-BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
+BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain800Setup)
 {
     LOCK(cs_main);
 
@@ -490,10 +498,10 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
         ::importwallet(request);
 
         BOOST_CHECK_EQUAL(wallet.mapWallet.size(), 3);
-        BOOST_CHECK_EQUAL(coinbaseTxns.size(), 103);
+        BOOST_CHECK_EQUAL(coinbaseTxns.size(), 803);
         for (size_t i = 0; i < coinbaseTxns.size(); ++i) {
             bool found = wallet.GetWalletTx(coinbaseTxns[i].GetHash());
-            bool expected = i >= 100;
+            bool expected = i >= 800;
             BOOST_CHECK_EQUAL(found, expected);
         }
     }
@@ -508,7 +516,7 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
 // This is a regression test written to verify a bugfix for the immature credit
 // function. Similar tests probably should be written for the other credit and
 // debit functions.
-BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain100Setup)
+BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain800Setup)
 {
     CWallet wallet;
     CWalletTx wtx(&wallet, MakeTransactionRef(coinbaseTxns.back()));
@@ -524,7 +532,7 @@ BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain100Setup)
     // credit amount is calculated.
     wtx.MarkDirty();
     wallet.AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
-    BOOST_CHECK_EQUAL(wtx.GetImmatureCredit(), 50*COIN);
+    BOOST_CHECK_EQUAL(wtx.GetImmatureCredit(), INITIAL_BLOCK_REWARD_REGTEST*COIN);
 }
 
 static int64_t AddTx(CWallet& wallet, uint32_t lockTime, int64_t mockTime, int64_t blockTime)
@@ -593,7 +601,7 @@ BOOST_AUTO_TEST_CASE(LoadReceiveRequests)
     BOOST_CHECK_EQUAL(values[1], "val_rr1");
 }
 
-class ListCoinsTestingSetup : public TestChain100Setup
+class ListCoinsTestingSetup : public TestChain800Setup
 {
 public:
     ListCoinsTestingSetup()
@@ -648,7 +656,7 @@ BOOST_FIXTURE_TEST_CASE(ListCoins, ListCoinsTestingSetup)
     BOOST_CHECK_EQUAL(list.begin()->second.size(), 1);
 
     // Check initial balance from one mature coinbase transaction.
-    BOOST_CHECK_EQUAL(50 * COIN, wallet->GetAvailableBalance());
+    BOOST_CHECK_EQUAL(INITIAL_BLOCK_REWARD_REGTEST*COIN, wallet->GetAvailableBalance());
 
     // Add a transaction creating a change address, and confirm ListCoins still
     // returns the coin associated with the change address underneath the

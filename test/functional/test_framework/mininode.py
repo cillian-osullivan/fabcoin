@@ -4,17 +4,17 @@
 # Copyright (c) 2010-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Bitcoin P2P network half-a-node.
+"""Fabcoin P2P network half-a-node.
 
 This python code was modified from ArtForz' public domain  half-a-node, as
 found in the mini-node branch of http://github.com/jgarzik/pynode.
 
-NodeConn: an object which manages p2p connectivity to a bitcoin node
+NodeConn: an object which manages p2p connectivity to a fabcoin node
 NodeConnCB: a base class that describes the interface for receiving
             callbacks with network messages from a NodeConn
 CBlock, CTransaction, CBlockHeader, CTxIn, CTxOut, etc....:
     data structures that should map to corresponding structures in
-    bitcoin/primitives
+    fabcoin/primitives
 msg_block, msg_tx, msg_headers, etc.:
     data structures that represent network messages
 ser_*, deser_*: functions that handle serialization/deserialization
@@ -36,16 +36,17 @@ from threading import RLock, Thread
 
 from test_framework.siphash import siphash256
 from test_framework.util import hex_str_to_bytes, bytes_to_hex_str, wait_until
+from test_framework.fabcoinconfig import INITIAL_HASH_UTXO_ROOT, INITIAL_HASH_STATE_ROOT
 
 BIP0031_VERSION = 60000
-MY_VERSION = 70014  # past bip-31 for ping/pong
+MY_VERSION = 70016  # past bip-31 for ping/pong
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3/"
 MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
 
 MAX_INV_SZ = 50000
 MAX_BLOCK_BASE_SIZE = 1000000
 
-COIN = 100000000 # 1 btc in satoshis
+COIN = 100000000 # 1 fab in liu
 
 NODE_NETWORK = (1 << 0)
 NODE_GETUTXO = (1 << 1)
@@ -217,7 +218,7 @@ def FromHex(obj, hex_string):
 def ToHex(obj):
     return bytes_to_hex_str(obj.serialize())
 
-# Objects that map to bitcoind objects, which can be serialized/deserialized
+# Objects that map to fabcoind objects, which can be serialized/deserialized
 
 class CAddress(object):
     def __init__(self):
@@ -449,7 +450,7 @@ class CTransaction(object):
         if len(self.vin) == 0:
             flags = struct.unpack("<B", f.read(1))[0]
             # Not sure why flags can't be zero, but this
-            # matches the implementation in bitcoind
+            # matches the implementation in fabcoind
             if (flags != 0):
                 self.vin = deser_vector(f, CTxIn)
                 self.vout = deser_vector(f, CTxOut)
@@ -517,7 +518,7 @@ class CTransaction(object):
     def is_valid(self):
         self.calc_sha256()
         for tout in self.vout:
-            if tout.nValue < 0 or tout.nValue > 21000000 * COIN:
+            if tout.nValue < 0 or tout.nValue > 168000000 * COIN:
                 return False
         return True
 
@@ -534,20 +535,34 @@ class CBlockHeader(object):
             self.nVersion = header.nVersion
             self.hashPrevBlock = header.hashPrevBlock
             self.hashMerkleRoot = header.hashMerkleRoot
+            self.nHeight = header.nHeight
+            #self.nReserved = copy.copy(header.nReserved)
             self.nTime = header.nTime
             self.nBits = header.nBits
             self.nNonce = header.nNonce
+            self.hashStateRoot = header.hashStateRoot
+            self.hashUTXORoot = header.hashUTXORoot
+            self.nNonce = header.nNonce
+            #self.nSolution = header.nSolution
+
             self.sha256 = header.sha256
             self.hash = header.hash
             self.calc_sha256()
 
     def set_null(self):
-        self.nVersion = 1
+        self.nVersion = 5
         self.hashPrevBlock = 0
         self.hashMerkleRoot = 0
         self.nTime = 0
         self.nBits = 0
         self.nNonce = 0
+        self.nHeight = 0
+        #self.nReserved = [0] * 7
+        #self.nSolution = b""
+
+        self.hashStateRoot = INITIAL_HASH_STATE_ROOT
+        self.hashUTXORoot = INITIAL_HASH_UTXO_ROOT
+
         self.sha256 = None
         self.hash = None
 
@@ -555,43 +570,59 @@ class CBlockHeader(object):
         self.nVersion = struct.unpack("<i", f.read(4))[0]
         self.hashPrevBlock = deser_uint256(f)
         self.hashMerkleRoot = deser_uint256(f)
+        self.nHeight = struct.unpack("<I", f.read(4))[0]
         self.nTime = struct.unpack("<I", f.read(4))[0]
         self.nBits = struct.unpack("<I", f.read(4))[0]
+        self.hashStateRoot = deser_uint256(f)
+        self.hashUTXORoot = deser_uint256(f)
         self.nNonce = struct.unpack("<I", f.read(4))[0]
         self.sha256 = None
         self.hash = None
 
-    def serialize(self):
+        #print(self)
+
+    def serialize_header(self):
         r = b""
+
         r += struct.pack("<i", self.nVersion)
         r += ser_uint256(self.hashPrevBlock)
         r += ser_uint256(self.hashMerkleRoot)
+        r += struct.pack("<I", self.nHeight)
         r += struct.pack("<I", self.nTime)
         r += struct.pack("<I", self.nBits)
-        r += struct.pack("<I", self.nNonce)
+        r += ser_uint256(self.hashStateRoot)
+        r += ser_uint256(self.hashUTXORoot)
+        r += struct.pack("<I", self.nNonce & 0xFFFFFFFF)
+
         return r
 
+    def serialize(self):
+        return self.serialize_header()
+
+
     def calc_sha256(self):
+
         if self.sha256 is None:
-            r = b""
-            r += struct.pack("<i", self.nVersion)
-            r += ser_uint256(self.hashPrevBlock)
-            r += ser_uint256(self.hashMerkleRoot)
-            r += struct.pack("<I", self.nTime)
-            r += struct.pack("<I", self.nBits)
-            r += struct.pack("<I", self.nNonce)
+            r = self.serialize_header()
+
             self.sha256 = uint256_from_str(hash256(r))
             self.hash = encode(hash256(r)[::-1], 'hex_codec').decode('ascii')
+
 
     def rehash(self):
         self.sha256 = None
         self.calc_sha256()
         return self.sha256
 
+    def is_pos(self):
+        return false
+
+
+
     def __repr__(self):
-        return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%08x)" \
-            % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot,
-               time.ctime(self.nTime), self.nBits, self.nNonce)
+        return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nHeight=%d nTime=%s nBits=%08x hashStateRoot=%064x hashUTXORoot=%064x nNonce=%08x)" \
+            % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot, self.nHeight, 
+               time.ctime(self.nTime), self.nBits, self.hashStateRoot, self.hashUTXORoot,self.nNonce)
 
 
 class CBlock(CBlockHeader):
@@ -606,6 +637,7 @@ class CBlock(CBlockHeader):
     def serialize(self, with_witness=False):
         r = b""
         r += super(CBlock, self).serialize()
+
         if with_witness:
             r += ser_vector(self.vtx, "serialize_with_witness")
         else:
@@ -642,6 +674,7 @@ class CBlock(CBlockHeader):
         return self.get_merkle_root(hashes)
 
     def is_valid(self):
+        # TODO(h4x3rotab): Not implemented for Equihash.
         self.calc_sha256()
         target = uint256_from_compact(self.nBits)
         if self.sha256 > target:
@@ -654,16 +687,19 @@ class CBlock(CBlockHeader):
         return True
 
     def solve(self):
+        # TODO(h4x3rotab): Not implemented for Equihash.
         self.rehash()
         target = uint256_from_compact(self.nBits)
+        #print("debug ",self.sha256, target, self.nNonce)
         while self.sha256 > target:
             self.nNonce += 1
             self.rehash()
+            #print("debug", self.sha256, target, self.nNonce)
 
     def __repr__(self):
-        return "CBlock(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%08x vtx=%s)" \
-            % (self.nVersion, self.hashPrevBlock, self.hashMerkleRoot,
-               time.ctime(self.nTime), self.nBits, self.nNonce, repr(self.vtx))
+        return "CBlock(hash=%s nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nHeight=%d nTime=%s nBits=%08x hashStateRoot=%064x hashUTXORoot=%064x nNonce=%08x vtx=%s)" \
+            % (self.hash, self.nVersion, self.hashPrevBlock, self.hashMerkleRoot, self.nHeight, 
+               time.ctime(self.nTime), self.nBits, self.hashStateRoot, self.hashUTXORoot, self.nNonce, repr(self.vtx))
 
 
 class CUnsignedAlert(object):
@@ -1314,7 +1350,7 @@ class msg_headers(object):
         self.headers = []
 
     def deserialize(self, f):
-        # comment in bitcoind indicates these should be deserialized as blocks
+        # comment in fabcoind indicates these should be deserialized as blocks
         blocks = deser_vector(f, CBlock)
         for x in blocks:
             self.headers.append(CBlockHeader(x))
@@ -1455,7 +1491,7 @@ class msg_witness_blocktxn(msg_blocktxn):
         return r
 
 class NodeConnCB(object):
-    """Callback and helper functions for P2P connection to a bitcoind node.
+    """Callback and helper functions for P2P connection to a fabcoind node.
 
     Individual testcases should subclass this and override the on_* methods
     if they want to alter message handling behaviour.
@@ -1617,7 +1653,7 @@ class NodeConnCB(object):
         self.sync_with_ping()
 
     # Sync up with the node
-    def sync_with_ping(self, timeout=60):
+    def sync_with_ping(self, timeout=120):
         self.send_message(msg_ping(nonce=self.ping_counter))
         test_function = lambda: self.last_message.get("pong") and self.last_message["pong"].nonce == self.ping_counter
         wait_until(test_function, timeout=timeout, lock=mininode_lock)
@@ -1651,8 +1687,8 @@ class NodeConn(asyncore.dispatcher):
         b"blocktxn": msg_blocktxn
     }
     MAGIC_BYTES = {
-        "mainnet": b"\xf9\xbe\xb4\xd9",   # mainnet
-        "testnet3": b"\x0b\x11\x09\x07",  # testnet3
+        "mainnet": b"\xfa\xbe\xef\xab",   # mainnet
+        "testnet3": b"\x0f\x11\x0a\x0b",  # testnet3
         "regtest": b"\xfa\xbf\xb5\xda",   # regtest
     }
 
@@ -1682,7 +1718,7 @@ class NodeConn(asyncore.dispatcher):
             vt.addrFrom.port = 0
             self.send_message(vt, True)
 
-        logger.info('Connecting to Bitcoin Node: %s:%d' % (self.dstaddr, self.dstport))
+        logger.info('Connecting to Fabcoin Node: %s:%d' % (self.dstaddr, self.dstport))
 
         try:
             self.connect((dstaddr, dstport))

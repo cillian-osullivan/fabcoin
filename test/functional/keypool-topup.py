@@ -12,14 +12,15 @@ Two nodes. Node1 is under test. Node0 is providing transactions and generating b
 - connect node1 to node0. Verify that they sync and node1 receives its funds."""
 import shutil
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import (
     assert_equal,
     connect_nodes_bi,
     sync_blocks,
 )
+from test_framework.fabcoinconfig import COINBASE_MATURITY
 
-class KeypoolRestoreTest(BitcoinTestFramework):
+class KeypoolRestoreTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
@@ -27,7 +28,7 @@ class KeypoolRestoreTest(BitcoinTestFramework):
 
     def run_test(self):
         self.tmpdir = self.options.tmpdir
-        self.nodes[0].generate(101)
+        self.nodes[0].generate(COINBASE_MATURITY+1)
 
         self.log.info("Make backup of wallet")
 

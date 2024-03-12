@@ -1,22 +1,26 @@
-// Copyright (c) 2014-2016 The Bitcoin Core developers
+// Copyright (c) 2014-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "chainparams.h"
-#include "validation.h"
-#include "net.h"
+#include <chainparams.h>
+#include <validation.h>
+#include <net.h>
 
-#include "test/test_bitcoin.h"
+#include <test/test_fabcoin.h>
 
 #include <boost/signals2/signal.hpp>
 #include <boost/test/unit_test.hpp>
+
+void avoidCompilerWarningsDefinedButNotUsedMainTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 BOOST_FIXTURE_TEST_SUITE(main_tests, TestingSetup)
 
 static void TestBlockSubsidyHalvings(const Consensus::Params& consensusParams)
 {
     int maxHalvings = 64;
-    CAmount nInitialSubsidy = 50 * COIN;
+    CAmount nInitialSubsidy = 25 * COIN;
 
     CAmount nPreviousSubsidy = nInitialSubsidy * 2; // for height == 0
     BOOST_CHECK_EQUAL(nPreviousSubsidy, nInitialSubsidy * 2);
@@ -49,13 +53,23 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
     const auto chainParams = CreateChainParams(CBaseChainParams::MAIN);
     CAmount nSum = 0;
-    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, chainParams->GetConsensus());
-        BOOST_CHECK(nSubsidy <= 50 * COIN);
+
+    CAmount nSubsidy ;
+
+    nSubsidy = GetBlockSubsidy(1, chainParams->GetConsensus());
+    BOOST_CHECK_EQUAL(nSubsidy , 25 * COIN); //genesis
+    nSubsidy = GetBlockSubsidy(2, chainParams->GetConsensus());
+    BOOST_CHECK_EQUAL(nSubsidy , 32000000 * COIN); //pre-mined
+
+    for (int nHeight = 0; nHeight < 112000000; nHeight += 1000) {
+        nSubsidy = GetBlockSubsidy(nHeight, chainParams->GetConsensus());
+        BOOST_CHECK(nSubsidy <= 25 * COIN);
+
         nSum += nSubsidy * 1000;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    BOOST_CHECK_EQUAL(nSum, 2099999997690000ULL);
+    //std::cerr << "nSum" << nSum << std::endl;
+    BOOST_CHECK_EQUAL(nSum, 4199999990760000ULL);
 }
 
 bool ReturnFalse() { return false; }

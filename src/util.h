@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,18 +7,18 @@
  * Server/client environment: argument handling, config file parsing,
  * logging, thread wrappers, startup time
  */
-#ifndef BITCOIN_UTIL_H
-#define BITCOIN_UTIL_H
+#ifndef FABCOIN_UTIL_H
+#define FABCOIN_UTIL_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include <config/fabcoin-config.h>
 #endif
 
-#include "compat.h"
-#include "fs.h"
-#include "sync.h"
-#include "tinyformat.h"
-#include "utiltime.h"
+#include <compat.h>
+#include <fs.h>
+#include <sync.h>
+#include <tinyformat.h>
+#include <utiltime.h>
 
 #include <atomic>
 #include <exception>
@@ -28,6 +28,12 @@
 #include <vector>
 
 #include <boost/signals2/signal.hpp>
+
+#ifndef WIN32
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
 
 // Application startup time (used for uptime calculation)
 int64_t GetStartupTime();
@@ -53,8 +59,8 @@ extern bool fLogIPs;
 extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
 
-extern const char * const BITCOIN_CONF_FILENAME;
-extern const char * const BITCOIN_PID_FILENAME;
+extern const char * const FABCOIN_CONF_FILENAME;
+extern const char * const FABCOIN_PID_FILENAME;
 
 extern std::atomic<uint32_t> logCategories;
 
@@ -101,9 +107,16 @@ namespace BCLog {
         COINDB      = (1 << 18),
         QT          = (1 << 19),
         LEVELDB     = (1 << 20),
+
+        HTTPPOLL    = (1 << 22),
+        POW         = (1 << 30),
         ALL         = ~(uint32_t)0,
     };
 }
+
+/** Return true if log accepts specified category */
+bool LogAcceptCategoryChar(const char* category);
+
 /** Return true if log accepts specified category */
 static inline bool LogAcceptCategory(uint32_t category)
 {
@@ -120,7 +133,8 @@ std::vector<CLogCategoryActive> ListActiveLogCategories();
 bool GetLogCategory(uint32_t *f, const std::string *str);
 
 /** Send a string to the log output */
-int LogPrintStr(const std::string &str);
+//int LogPrintStr(const std::string &str );
+int LogPrintStr(const std::string &str, bool useVMLog = false); // fasc
 
 /** Get format string from VA_ARGS for error reporting */
 template<typename... Args> std::string FormatStringFromLogArgs(const char *fmt, const Args&... args) { return fmt; }
@@ -153,6 +167,12 @@ template<typename T, typename... Args> static inline void MarkUsed(const T& t, c
     } \
 } while(0)
 #endif
+
+#define LogPrintChar(category, ...) do { \
+    if (LogAcceptCategoryChar((category))) { \
+        LogPrintStr(tfm::format(__VA_ARGS__)); \
+    } \
+} while(0)
 
 template<typename... Args>
 bool error(const char* fmt, const Args&... args)
@@ -287,6 +307,7 @@ std::string HelpMessageOpt(const std::string& option, const std::string& message
  */
 int GetNumCores();
 
+void SetThreadPriority(int nPriority);
 void RenameThread(const char* name);
 
 /**
@@ -294,7 +315,7 @@ void RenameThread(const char* name);
  */
 template <typename Callable> void TraceThread(const char* name,  Callable func)
 {
-    std::string s = strprintf("bitcoin-%s", name);
+    std::string s = strprintf("fabcoin-%s", name);
     RenameThread(s.c_str());
     try
     {
@@ -319,4 +340,7 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
 
 std::string CopyrightHolders(const std::string& strPrefix);
 
-#endif // BITCOIN_UTIL_H
+bool CheckHex(const std::string& str);
+
+void ReplaceInt(const int64_t& number, const std::string& key, std::string& str);
+#endif // FABCOIN_UTIL_H

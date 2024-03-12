@@ -9,12 +9,12 @@ This test uses 4GB of disk space.
 This test takes 30 mins or more (up to 2 hours)
 """
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 import time
 import os
 
-MIN_BLOCKS_TO_KEEP = 288
+MIN_BLOCKS_TO_KEEP = 988
 
 # Rescans start at the earliest block up to 2 hours before a key timestamp, so
 # the manual prune RPC avoids pruning blocks in the same window to be
@@ -25,7 +25,7 @@ TIMESTAMP_WINDOW = 2 * 60 * 60
 def calc_usage(blockdir):
     return sum(os.path.getsize(blockdir+f) for f in os.listdir(blockdir) if os.path.isfile(blockdir+f)) / (1024. * 1024.)
 
-class PruneTest(BitcoinTestFramework):
+class PruneTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 6
@@ -37,10 +37,10 @@ class PruneTest(BitcoinTestFramework):
         # Create nodes 5 to test wallet in prune mode, but do not connect
         self.extra_args = [self.full_node_default_args,
                            self.full_node_default_args,
-                           ["-maxreceivebuffer=20000", "-prune=550"],
+                           ["-maxreceivebuffer=20000", "-prune=1250"],
                            ["-maxreceivebuffer=20000", "-blockmaxsize=999000"],
                            ["-maxreceivebuffer=20000", "-blockmaxsize=999000"],
-                           ["-prune=550"]]
+                           ["-prune=1250"]]
 
     def setup_network(self):
         self.setup_nodes()
@@ -60,9 +60,9 @@ class PruneTest(BitcoinTestFramework):
 
     def create_big_chain(self):
         # Start by creating some coinbases we can spend later
-        self.nodes[1].generate(200)
+        self.nodes[1].generate(900)
         sync_blocks(self.nodes[0:2])
-        self.nodes[0].generate(150)
+        self.nodes[0].generate(950)
         # Then mine enough full blocks to create more than 550MiB of data
         for i in range(645):
             mine_large_block(self.nodes[0], self.utxo_cache_0)
@@ -242,7 +242,7 @@ class PruneTest(BitcoinTestFramework):
 
         def height(index):
             if use_timestamp:
-                return node.getblockheader(node.getblockhash(index))["time"] + TIMESTAMP_WINDOW
+                return node.getblockheader(node.getblockhash(index), True)["time"] + TIMESTAMP_WINDOW
             else:
                 return index
 
@@ -265,7 +265,7 @@ class PruneTest(BitcoinTestFramework):
             return os.path.isfile(self.options.tmpdir + "/node{}/regtest/blocks/blk{:05}.dat".format(node_number, index))
 
         # should not prune because chain tip of node 3 (995) < PruneAfterHeight (1000)
-        assert_raises_rpc_error(-1, "Blockchain is too short for pruning", node.pruneblockchain, height(500))
+        assert_raises_rpc_error(-1, "Blockchain is too short for pruning", node.pruneblockchain, height(1100))
 
         # mine 6 blocks so we are at height 1001 (i.e., above PruneAfterHeight)
         node.generate(6)
@@ -296,7 +296,7 @@ class PruneTest(BitcoinTestFramework):
         if has_block(1):
             raise AssertionError("blk00001.dat is still there, should be pruned by now")
 
-        # height=1000 should not prune anything more, because tip-288 is in blk00002.dat.
+        # height=1000 should not prune anything more, because tip-988 is in blk00002.dat.
         prune(1000, 1001 - MIN_BLOCKS_TO_KEEP)
         if not has_block(2):
             raise AssertionError("blk00002.dat is still there, should be pruned by now")

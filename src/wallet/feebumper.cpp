@@ -2,18 +2,23 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "consensus/validation.h"
-#include "wallet/coincontrol.h"
-#include "wallet/feebumper.h"
-#include "wallet/wallet.h"
-#include "policy/fees.h"
-#include "policy/policy.h"
-#include "policy/rbf.h"
-#include "validation.h" //for mempool access
-#include "txmempool.h"
-#include "utilmoneystr.h"
-#include "util.h"
-#include "net.h"
+#include <consensus/validation.h>
+#include <wallet/coincontrol.h>
+#include <wallet/feebumper.h>
+#include <wallet/wallet.h>
+#include <policy/fees.h>
+#include <policy/policy.h>
+#include <policy/rbf.h>
+#include <validation.h> //for mempool access
+#include <txmempool.h>
+#include <utilmoneystr.h>
+#include <util.h>
+#include <net.h>
+
+
+void avoidCompilerWarningsDefinedButNotUsedFeeBumper() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 // Calculate the size of the transaction assuming all signatures are max size
 // Use DummySignatureCreator, which inserts 72 byte signatures everywhere.
@@ -173,7 +178,7 @@ CFeeBumper::CFeeBumper(const CWallet *pWallet, const uint256 txidIn, const CCoin
         // walletIncrementalRelayFee.GetFeePerK() should be exact, because it's initialized
         // in that unit (fee per kb).
         // However, nOldFeeRate is a calculated value from the tx fee/size, so
-        // add 1 satoshi to the result, because it may have been rounded down.
+        // add 1 liu to the result, because it may have been rounded down.
         if (nNewFeeRate.GetFeePerK() < nOldFeeRate.GetFeePerK() + 1 + walletIncrementalRelayFee.GetFeePerK()) {
             nNewFeeRate = CFeeRate(nOldFeeRate.GetFeePerK() + 1 + walletIncrementalRelayFee.GetFeePerK());
             nNewFee = nNewFeeRate.GetFee(maxNewTxSize);

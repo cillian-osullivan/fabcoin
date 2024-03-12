@@ -1,12 +1,12 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_GUIUTIL_H
-#define BITCOIN_QT_GUIUTIL_H
+#ifndef FABCOIN_QT_GUIUTIL_H
+#define FABCOIN_QT_GUIUTIL_H
 
-#include "amount.h"
-#include "fs.h"
+#include <amount.h>
+#include <fs.h>
 
 #include <QEvent>
 #include <QHeaderView>
@@ -16,6 +16,7 @@
 #include <QString>
 #include <QTableView>
 #include <QLabel>
+#include <QToolButton>
 
 class QValidatedLineEdit;
 class SendCoinsRecipient;
@@ -29,7 +30,7 @@ class QUrl;
 class QWidget;
 QT_END_NAMESPACE
 
-/** Utility functions used by the Bitcoin Qt UI.
+/** Utility functions used by the Fabcoin Qt UI.
  */
 namespace GUIUtil
 {
@@ -44,10 +45,10 @@ namespace GUIUtil
     void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent);
     void setupAmountWidget(QLineEdit *widget, QWidget *parent);
 
-    // Parse "bitcoin:" URI into recipient object, return true on successful parsing
-    bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out);
-    bool parseBitcoinURI(QString uri, SendCoinsRecipient *out);
-    QString formatBitcoinURI(const SendCoinsRecipient &info);
+    // Parse "fabcoin:" URI into recipient object, return true on successful parsing
+    bool parseFabcoinURI(const QUrl &uri, SendCoinsRecipient *out);
+    bool parseFabcoinURI(QString uri, SendCoinsRecipient *out);
+    QString formatFabcoinURI(const SendCoinsRecipient &info);
 
     // Returns true if given address+amount meets "dust" definition
     bool isDust(const QString& address, const CAmount& amount);
@@ -63,6 +64,13 @@ namespace GUIUtil
        @see  TransactionView::copyLabel, TransactionView::copyAmount, TransactionView::copyAddress
      */
     void copyEntryData(QAbstractItemView *view, int column, int role=Qt::EditRole);
+
+    /** Copy a field of the currently selected entry of a view to the clipboard. Does nothing if nothing
+        is selected.
+       @param[in] role    Data role to extract from the model
+       @see  QRCToken::copyTokenAddress
+     */
+    void copyEntryDataFromList(QAbstractItemView *view, int role=Qt::EditRole);
 
     /** Return a field of the currently selected entry as a QString. Does nothing if nothing
         is selected.
@@ -114,7 +122,7 @@ namespace GUIUtil
     void openDebugLogfile();
 
     // Open the config file
-    bool openBitcoinConf();
+    bool openFabcoinConf();
 
     // Replace invalid default fonts with known good ones
     void SubstituteFonts(const QString& language);
@@ -152,7 +160,7 @@ namespace GUIUtil
         Q_OBJECT
 
         public:
-            TableViewLastColumnResizingFixer(QTableView* table, int lastColMinimumWidth, int allColsMinimumWidth, QObject *parent);
+            TableViewLastColumnResizingFixer(QTableView* table, int lastColMinimumWidth, int allColsMinimumWidth, QObject *parent, int columnStretch = 2);
             void stretchColumnWidth(int column);
 
         private:
@@ -239,6 +247,8 @@ namespace GUIUtil
     typedef ClickableProgressBar ProgressBar;
 #endif
 
+    void formatToolButtons(QToolButton* btn1, QToolButton* btn2 = 0, QToolButton* btn3 = 0);
+
 } // namespace GUIUtil
 
-#endif // BITCOIN_QT_GUIUTIL_H
+#endif // FABCOIN_QT_GUIUTIL_H

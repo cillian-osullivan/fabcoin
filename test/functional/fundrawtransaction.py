@@ -4,9 +4,9 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the fundrawtransaction RPC."""
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
-
+from test_framework.fabcoinconfig import COINBASE_MATURITY, INITIAL_BLOCK_REWARD
 
 def get_unspent(listunspent, amount):
     for utx in listunspent:
@@ -14,7 +14,7 @@ def get_unspent(listunspent, amount):
             return utx
     raise AssertionError('Could not find unspent with amount={}'.format(amount))
 
-class RawTransactionsTest(BitcoinTestFramework):
+class RawTransactionsTest(FabcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 4
         self.setup_clean_chain = True
@@ -44,17 +44,17 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.nodes[2].generate(1)
         self.sync_all()
-        self.nodes[0].generate(121)
+        self.nodes[0].generate(COINBASE_MATURITY + 21)
         self.sync_all()
 
         # ensure that setting changePosition in fundraw with an exact match is handled properly
-        rawmatch = self.nodes[2].createrawtransaction([], {self.nodes[2].getnewaddress():50})
+        rawmatch = self.nodes[2].createrawtransaction([], {self.nodes[2].getnewaddress():INITIAL_BLOCK_REWARD})
         rawmatch = self.nodes[2].fundrawtransaction(rawmatch, {"changePosition":1, "subtractFeeFromOutputs":[0]})
         assert_equal(rawmatch["changepos"], -1)
 
         watchonly_address = self.nodes[0].getnewaddress()
         watchonly_pubkey = self.nodes[0].validateaddress(watchonly_address)["pubkey"]
-        watchonly_amount = Decimal(200)
+        watchonly_amount = Decimal(4*INITIAL_BLOCK_REWARD)
         self.nodes[3].importpubkey(watchonly_pubkey, "", True)
         watchonly_txid = self.nodes[0].sendtoaddress(watchonly_address, watchonly_amount)
         self.nodes[0].sendtoaddress(self.nodes[3].getnewaddress(), watchonly_amount / 10)
@@ -192,7 +192,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         dec_tx  = self.nodes[2].decoderawtransaction(rawtx)
         assert_equal(utx['txid'], dec_tx['vin'][0]['txid'])
 
-        assert_raises_rpc_error(-5, "changeAddress must be a valid bitcoin address", self.nodes[2].fundrawtransaction, rawtx, {'changeAddress':'foobar'})
+        assert_raises_rpc_error(-5, "changeAddress must be a valid fabcoin address", self.nodes[2].fundrawtransaction, rawtx, {'changeAddress':'foobar'})
 
         ############################################################
         # test a fundrawtransaction with a provided change address #
@@ -422,7 +422,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         mSigObj = self.nodes[2].addmultisigaddress(2, [addr1Obj['pubkey'], addr2Obj['pubkey']])
 
 
-        # send 1.2 BTC to msig addr
+        # send 1.2 FAB to msig addr
         txId = self.nodes[0].sendtoaddress(mSigObj, 1.2)
         self.sync_all()
         self.nodes[1].generate(1)
@@ -487,14 +487,14 @@ class RawTransactionsTest(BitcoinTestFramework):
         fundedTx = self.nodes[1].fundrawtransaction(rawtx)
 
         #now we need to unlock
-        self.nodes[1].walletpassphrase("test", 600)
+        self.nodes[1].walletpassphrase("test", 600 )
         signedTx = self.nodes[1].signrawtransaction(fundedTx['hex'])
         txId = self.nodes[1].sendrawtransaction(signedTx['hex'])
         self.nodes[1].generate(1)
         self.sync_all()
 
         # make sure funds are received at node1
-        assert_equal(oldBalance+Decimal('51.10000000'), self.nodes[0].getbalance())
+        assert_equal(oldBalance+INITIAL_BLOCK_REWARD+Decimal('1.10000000'), self.nodes[0].getbalance())
 
 
         ###############################################
@@ -554,7 +554,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
         self.nodes[0].generate(1)
         self.sync_all()
-        assert_equal(oldBalance+Decimal('50.19000000'), self.nodes[0].getbalance()) #0.19+block reward
+        assert_equal(oldBalance+INITIAL_BLOCK_REWARD+Decimal('0.19000000'), self.nodes[0].getbalance()) #0.19+block reward
 
         #####################################################
         # test fundrawtransaction with OP_RETURN and no vin #
@@ -706,7 +706,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         # outputs 2 and 3 take the same share of the fee
         assert_equal(share[2], share[3])
 
-        # output 0 takes at least as much share of the fee, and no more than 2 satoshis more, than outputs 2 and 3
+        # output 0 takes at least as much share of the fee, and no more than 2 lius more, than outputs 2 and 3
         assert_greater_than_or_equal(share[0], share[2])
         assert_greater_than_or_equal(share[2] + Decimal(2e-8), share[0])
 

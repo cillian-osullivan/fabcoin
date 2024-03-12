@@ -1,15 +1,16 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CHAINPARAMS_H
-#define BITCOIN_CHAINPARAMS_H
+#ifndef FABCOIN_CHAINPARAMS_H
+#define FABCOIN_CHAINPARAMS_H
 
-#include "chainparamsbase.h"
-#include "consensus/params.h"
-#include "primitives/block.h"
-#include "protocol.h"
+#include <chainparamsbase.h>
+#include <consensus/params.h>
+#include <primitives/block.h>
+#include <protocol.h>
+#include <libethashseal/GenesisInfo.h>
 
 #include <memory>
 #include <vector>
@@ -39,7 +40,7 @@ struct ChainTxData {
 
 /**
  * CChainParams defines various tweakable parameters of a given instance of the
- * Bitcoin system. There are three: the main network on which people trade goods
+ * Fabcoin system. There are three: the main network on which people trade goods
  * and services, the public test network which gets reset from time to time and
  * a regression test mode which is intended for private networks only. It has
  * minimal difficulty to ensure that blocks can be found instantly.
@@ -62,11 +63,17 @@ public:
     int GetDefaultPort() const { return nDefaultPort; }
 
     const CBlock& GenesisBlock() const { return genesis; }
+    /** Make miner wait to have peers to avoid wasting work */
+    bool MiningRequiresPeers() const { return fMiningRequiresPeers; }
     /** Default value for -checkmempool and -checkblockindex argument */
     bool DefaultConsistencyChecks() const { return fDefaultConsistencyChecks; }
     /** Policy: Filter transactions that do not match well-defined patterns */
     bool RequireStandard() const { return fRequireStandard; }
+    bool IncludeTestCommands() const {return this->fIncludeTestCommands; }
     uint64_t PruneAfterHeight() const { return nPruneAfterHeight; }
+    unsigned int EquihashN(uint32_t nHeight = 0) const { return (nHeight < consensus.EquihashFABHeight) /*|| (strNetworkID != CBaseChainParams::MAIN)*/ ? nEquihashN : 184; }
+    unsigned int EquihashK(uint32_t nHeight = 0) const { return (nHeight < consensus.EquihashFABHeight) /*|| (strNetworkID != CBaseChainParams::MAIN)*/ ? nEquihashK : 7; }
+    int64_t GetnPowTargetSpacing( uint32_t nHeight = 0 ) const { return (nHeight < consensus.EquihashFABHeight) ? consensus.nPowTargetSpacing : 2* consensus.nPowTargetSpacing; }
     /** Make miner stop after a block is found. In RPC, don't return until nGenProcLimit blocks are generated */
     bool MineBlocksOnDemand() const { return fMineBlocksOnDemand; }
     /** Return the BIP70 network string (main, test or regtest) */
@@ -76,19 +83,27 @@ public:
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
     const ChainTxData& TxData() const { return chainTxData; }
+    std::string EVMGenesisInfo() const;
+    std::string EVMGenesisInfo(int nHeight) const;
     void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
 protected:
+    dev::eth::Network GetEVMNetwork() const;
     CChainParams() {}
 
     Consensus::Params consensus;
     CMessageHeader::MessageStartChars pchMessageStart;
-    int nDefaultPort;
+    uint16_t nDefaultPort;
     uint64_t nPruneAfterHeight;
+    unsigned int nEquihashN = 0;
+    unsigned int nEquihashK = 0;
     std::vector<CDNSSeedData> vSeeds;
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
     std::string strNetworkID;
+    std::string kanbanId;
     CBlock genesis;
     std::vector<SeedSpec6> vFixedSeeds;
+    bool fIncludeTestCommands;
+    bool fMiningRequiresPeers;
     bool fDefaultConsistencyChecks;
     bool fRequireStandard;
     bool fMineBlocksOnDemand;
@@ -108,7 +123,7 @@ std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain);
  * startup, except for unit tests.
  */
 const CChainParams &Params();
-
+const CChainParams &GetParams();
 /**
  * Sets the params returned by Params() to those for the given BIP70 chain name.
  * @throws std::runtime_error when the chain is not supported.
@@ -120,4 +135,4 @@ void SelectParams(const std::string& chain);
  */
 void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout);
 
-#endif // BITCOIN_CHAINPARAMS_H
+#endif // FABCOIN_CHAINPARAMS_H

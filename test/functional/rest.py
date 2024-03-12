@@ -4,7 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test the REST API."""
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 from struct import *
 from io import BytesIO
@@ -12,6 +12,7 @@ from codecs import encode
 
 import http.client
 import urllib.parse
+from test_framework.fabcoinconfig import COINBASE_MATURITY, INITIAL_BLOCK_REWARD, ICO_BLOCK_REWARD
 
 def deser_uint256(f):
     r = 0
@@ -40,7 +41,7 @@ def http_post_call(host, port, path, requestdata = '', response_object = 0):
 
     return conn.getresponse().read()
 
-class RESTTest (BitcoinTestFramework):
+class RESTTest (FabcoinTestFramework):
     FORMAT_SEPARATOR = "."
 
     def set_test_params(self):
@@ -55,12 +56,12 @@ class RESTTest (BitcoinTestFramework):
         url = urllib.parse.urlparse(self.nodes[0].url)
         self.log.info("Mining blocks...")
 
-        self.nodes[0].generate(1)
+        self.nodes[0].generate(2)
         self.sync_all()
-        self.nodes[2].generate(100)
+        self.nodes[2].generate(COINBASE_MATURITY)
         self.sync_all()
 
-        assert_equal(self.nodes[0].getbalance(), 50)
+        assert_equal(self.nodes[0].getbalance(), INITIAL_BLOCK_REWARD*2 + ICO_BLOCK_REWARD  )  
 
         txid = self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 0.1)
         self.sync_all()
@@ -139,7 +140,7 @@ class RESTTest (BitcoinTestFramework):
         hashFromBinResponse = hex(deser_uint256(output))[2:].zfill(64)
 
         assert_equal(bb_hash, hashFromBinResponse) #check if getutxo's chaintip during calculation was fine
-        assert_equal(chainHeight, 102) #chain height must be 102
+        assert_equal(chainHeight, COINBASE_MATURITY + 3) #chain height must be 803
 
 
         ############################
@@ -204,15 +205,21 @@ class RESTTest (BitcoinTestFramework):
         # check binary format
         response = http_get_call(url.hostname, url.port, '/rest/block/'+bb_hash+self.FORMAT_SEPARATOR+"bin", True)
         assert_equal(response.status, 200)
-        assert_greater_than(int(response.getheader('content-length')), 80)
+
+        #print (response.getheader('content-length'))
+        assert_greater_than(int(response.getheader('content-length')), 147)
         response_str = response.read()
 
         # compare with block header
         response_header = http_get_call(url.hostname, url.port, '/rest/headers/1/'+bb_hash+self.FORMAT_SEPARATOR+"bin", True)
         assert_equal(response_header.status, 200)
-        assert_equal(int(response_header.getheader('content-length')), 80)
+
+        #print (response.getheader('content-length'))
+        assert_greater_than(int(response_header.getheader('content-length')), 147)
+
         response_header_str = response_header.read()
-        assert_equal(response_str[0:80], response_header_str)
+        response_header_length = int(response_header.getheader('content-length'))
+        assert_equal(response_str[0:response_header_length], response_header_str)
 
         # check block hex format
         response_hex = http_get_call(url.hostname, url.port, '/rest/block/'+bb_hash+self.FORMAT_SEPARATOR+"hex", True)
@@ -223,9 +230,12 @@ class RESTTest (BitcoinTestFramework):
 
         # compare with hex block header
         response_header_hex = http_get_call(url.hostname, url.port, '/rest/headers/1/'+bb_hash+self.FORMAT_SEPARATOR+"hex", True)
+
         assert_equal(response_header_hex.status, 200)
         assert_greater_than(int(response_header_hex.getheader('content-length')), 160)
         response_header_hex_str = response_header_hex.read()
+        #print ("response_header_hex)", response_header_hex_str)
+
         assert_equal(response_hex_str[0:160], response_header_hex_str[0:160])
         assert_equal(encode(response_header_str, "hex_codec")[0:160], response_header_hex_str[0:160])
 
@@ -250,6 +260,7 @@ class RESTTest (BitcoinTestFramework):
         assert_equal(json_obj[0]['version'],            rpc_block_json['version'])
         assert_equal(json_obj[0]['merkleroot'],         rpc_block_json['merkleroot'])
         assert_equal(json_obj[0]['time'],               rpc_block_json['time'])
+        #print(json_obj[0]['nonce'], rpc_block_json['nonce'] )
         assert_equal(json_obj[0]['nonce'],              rpc_block_json['nonce'])
         assert_equal(json_obj[0]['bits'],               rpc_block_json['bits'])
         assert_equal(json_obj[0]['difficulty'],         rpc_block_json['difficulty'])

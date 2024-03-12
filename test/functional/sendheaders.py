@@ -74,7 +74,7 @@ e. Announce one more that doesn't connect.
 """
 
 from test_framework.mininode import *
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 from test_framework.blocktools import create_block, create_coinbase
 
@@ -173,7 +173,7 @@ class TestNode(NodeConnCB):
         getblocks_message.locator.vHave = locator
         self.send_message(getblocks_message)
 
-class SendHeadersTest(BitcoinTestFramework):
+class SendHeadersTest(FabcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
@@ -255,7 +255,7 @@ class SendHeadersTest(BitcoinTestFramework):
                 height = self.nodes[0].getblockcount()
                 last_time = self.nodes[0].getblock(self.nodes[0].getbestblockhash())['time']
                 block_time = last_time + 1
-                new_block = create_block(tip, create_coinbase(height+1), block_time)
+                new_block = create_block(tip, create_coinbase(height+1), height+1, block_time)
                 new_block.solve()
                 test_node.send_header_for_blocks([new_block])
                 test_node.wait_for_getdata([new_block.sha256])
@@ -289,7 +289,7 @@ class SendHeadersTest(BitcoinTestFramework):
             for j in range(2):
                 blocks = []
                 for b in range(i+1):
-                    blocks.append(create_block(tip, create_coinbase(height), block_time))
+                    blocks.append(create_block(tip, create_coinbase(height), height, block_time))
                     blocks[-1].solve()
                     tip = blocks[-1].sha256
                     block_time += 1
@@ -401,7 +401,7 @@ class SendHeadersTest(BitcoinTestFramework):
         # Create 2 blocks.  Send the blocks, then send the headers.
         blocks = []
         for b in range(2):
-            blocks.append(create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(tip, create_coinbase(height), height, block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
@@ -419,7 +419,7 @@ class SendHeadersTest(BitcoinTestFramework):
         # This time, direct fetch should work
         blocks = []
         for b in range(3):
-            blocks.append(create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(tip, create_coinbase(height), height, block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
@@ -435,12 +435,12 @@ class SendHeadersTest(BitcoinTestFramework):
 
         # Now announce a header that forks the last two blocks
         tip = blocks[0].sha256
-        height -= 1
+        height -= 2
         blocks = []
 
         # Create extra blocks for later
         for b in range(20):
-            blocks.append(create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(tip, create_coinbase(height), height, block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
@@ -486,7 +486,7 @@ class SendHeadersTest(BitcoinTestFramework):
             blocks = []
             # Create two more blocks.
             for j in range(2):
-                blocks.append(create_block(tip, create_coinbase(height), block_time))
+                blocks.append(create_block(tip, create_coinbase(height), height, block_time))
                 blocks[-1].solve()
                 tip = blocks[-1].sha256
                 block_time += 1
@@ -507,7 +507,7 @@ class SendHeadersTest(BitcoinTestFramework):
         # don't go into an infinite loop trying to get them to connect.
         MAX_UNCONNECTING_HEADERS = 10
         for j in range(MAX_UNCONNECTING_HEADERS+1):
-            blocks.append(create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(tip, create_coinbase(height), height, block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1

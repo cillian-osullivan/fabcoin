@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_SENDCOINSENTRY_H
-#define BITCOIN_QT_SENDCOINSENTRY_H
+#ifndef FABCOIN_QT_SENDCOINSENTRY_H
+#define FABCOIN_QT_SENDCOINSENTRY_H
 
-#include "walletmodel.h"
+#include <walletmodel.h>
 
 #include <QStackedWidget>
 
@@ -17,13 +17,17 @@ namespace Ui {
 }
 
 /**
- * A single entry in the dialog for sending bitcoins.
+ * A single entry in the dialog for sending fabcoins.
  * Stacked widget, with different UIs for payment requests
  * with a strong payee identity.
  */
 class SendCoinsEntry : public QStackedWidget
 {
     Q_OBJECT
+
+    void avoidCompilerWarningsDefinedButNotUsedSendCoinsEntry() {
+        (void) FetchSCARShardPublicKeysInternalPointer;
+    }
 
 public:
     explicit SendCoinsEntry(const PlatformStyle *platformStyle, QWidget *parent = 0);
@@ -70,4 +74,4 @@ private:
     bool updateLabel(const QString &address);
 };
 
-#endif // BITCOIN_QT_SENDCOINSENTRY_H
+#endif // FABCOIN_QT_SENDCOINSENTRY_H

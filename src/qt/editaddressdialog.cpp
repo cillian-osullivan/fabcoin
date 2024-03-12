@@ -1,15 +1,17 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "editaddressdialog.h"
-#include "ui_editaddressdialog.h"
+#include <editaddressdialog.h>
+#include <ui_editaddressdialog.h>
 
-#include "addresstablemodel.h"
-#include "guiutil.h"
+#include <addresstablemodel.h>
+#include <guiutil.h>
+#include <styleSheet.h>
 
 #include <QDataWidgetMapper>
 #include <QMessageBox>
+#include <QPushButton>
 
 EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
     QDialog(parent),
@@ -19,6 +21,9 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget *parent) :
     model(0)
 {
     ui->setupUi(this);
+
+    SetObjectStyleSheet(ui->buttonBox->button(QDialogButtonBox::Cancel), StyleSheetNames::ButtonWhite);
+    SetObjectStyleSheet(ui->buttonBox->button(QDialogButtonBox::Ok), StyleSheetNames::ButtonBlue);
 
     GUIUtil::setupAddressWidget(ui->addressEdit, this);
 
@@ -107,7 +112,7 @@ void EditAddressDialog::accept()
             break;
         case AddressTableModel::INVALID_ADDRESS:
             QMessageBox::warning(this, windowTitle(),
-                tr("The entered address \"%1\" is not a valid Bitcoin address.").arg(ui->addressEdit->text()),
+                tr("The entered address \"%1\" is not a valid Fabcoin address.").arg(ui->addressEdit->text()),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case AddressTableModel::DUPLICATE_ADDRESS:

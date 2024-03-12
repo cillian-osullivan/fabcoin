@@ -1,12 +1,12 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_PAYMENTSERVER_H
-#define BITCOIN_QT_PAYMENTSERVER_H
+#ifndef FABCOIN_QT_PAYMENTSERVER_H
+#define FABCOIN_QT_PAYMENTSERVER_H
 
 // This class handles payment requests from clicking on
-// bitcoin: URIs
+// fabcoin: URIs
 //
 // This is somewhat tricky, because we have to deal with
 // the situation where the user clicks on a link during
@@ -32,8 +32,8 @@
 // sends them to the server.
 //
 
-#include "paymentrequestplus.h"
-#include "walletmodel.h"
+#include <paymentrequestplus.h>
+#include <walletmodel.h>
 
 #include <QObject>
 #include <QString>
@@ -55,11 +55,15 @@ QT_END_NAMESPACE
 // BIP70 max payment request size in bytes (DoS protection)
 static const qint64 BIP70_MAX_PAYMENTREQUEST_SIZE = 50000;
 
+
 class PaymentServer : public QObject
 {
     Q_OBJECT
 
 public:
+    void avoidCompilerWarningsDefinedButNotUsedPaymentServerHeader() {
+        (void) FetchSCARShardPublicKeysInternalPointer;
+    }
     // Parse URIs on command line
     // Returns false on error
     static void ipcParseCommandLine(int argc, char *argv[]);
@@ -145,4 +149,4 @@ private:
     OptionsModel *optionsModel;
 };
 
-#endif // BITCOIN_QT_PAYMENTSERVER_H
+#endif // FABCOIN_QT_PAYMENTSERVER_H

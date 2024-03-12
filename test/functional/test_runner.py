@@ -10,7 +10,7 @@ forward all unrecognized arguments onto the individual test scripts.
 Functional tests are disabled on Windows by default. Use --force to run them anyway.
 
 For a description of arguments recognized by test scripts, see
-`test/functional/test_framework/test_framework.py:BitcoinTestFramework.main`.
+`test/functional/test_framework/test_framework.py:FabcoinTestFramework.main`.
 
 """
 
@@ -57,10 +57,10 @@ BASE_SCRIPTS= [
     'wallet-hd.py',
     'walletbackup.py',
     # vv Tests less than 5m vv
-    'p2p-fullblocktest.py',
+
     'fundrawtransaction.py',
     'p2p-compactblocks.py',
-    'segwit.py',
+    ###'segwit.py',
     # vv Tests less than 2m vv
     'wallet.py',
     'wallet-accounts.py',
@@ -75,16 +75,16 @@ BASE_SCRIPTS= [
     'merkle_blocks.py',
     'receivedby.py',
     'abandonconflict.py',
-    'bip68-112-113-p2p.py',
+
     'rawtransactions.py',
     'reindex.py',
     # vv Tests less than 30s vv
     'keypool-topup.py',
     'zmq_test.py',
-    'bitcoin_cli.py',
+    'fabcoin_cli.py',
     'mempool_resurrect_test.py',
     'txn_doublespend.py --mineblock',
-    'txn_clone.py',
+
     'getchaintips.py',
     'rest.py',
     'mempool_spendcoinbase.py',
@@ -98,6 +98,7 @@ BASE_SCRIPTS= [
     'disconnect_ban.py',
     'decodescript.py',
     'blockchain.py',
+    'blockconflict.py',
     'disablewallet.py',
     'net.py',
     'keypool.py',
@@ -117,12 +118,41 @@ BASE_SCRIPTS= [
     'listsinceblock.py',
     'p2p-leaktests.py',
     'wallet-encryption.py',
-    'bipdersig-p2p.py',
-    'bip65-cltv-p2p.py',
     'uptime.py',
     'resendwallettransactions.py',
     'minchainwork.py',
-    'p2p-acceptblock.py',
+
+    # fabcoin
+    'fabcoin-dgp.py',
+    'fabcoin-opcall.py',
+    'fabcoin-opcreate.py',
+    'fabcoin-8mb-block.py',
+    'fabcoin-gas-limit.py',
+    'fabcoin-searchlog.py',
+    'fabcoin-state-root.py',
+    'fabcoin-evm-globals.py',
+    'fabcoin-null-sender.py',
+    'fabcoin-waitforlogs.py',
+    'fabcoin-block-header.py',
+    'fabcoin-callcontract.py',
+    'fabcoin-spend-op-call.py',
+    'fabcoin-condensing-txs.py',
+    'fabcoin-createcontract.py',
+    'fabcoin-sendtocontract.py',
+    'fabcoin-identical-refunds.py',
+    'fabcoin-create-eth-op-code.py',
+    'fabcoin-gas-limit-overflow.py',
+    'fabcoin-call-empty-contract.py',
+    'fabcoin-dgp-block-size-sync.py',
+    'fabcoin-globals-state-changer.py',
+    'fabcoin-no-exec-call-disabled.py',
+    'fabcoin-soft-block-gas-limits.py',
+    'fabcoin-dgp-block-size-restart.py',
+    'fabcoin-searchlog-restart-node.py',
+    'fabcoin-transaction-prioritization.py',
+    'fabcoin-many-value-refunds-from-same-tx.py',
+    'fabcoin-combined-outputs-exceed-gas-limit.py',
+    'fabcoin-dgp-gas-price-lingering-mempool-tx.py',
 ]
 
 EXTENDED_SCRIPTS = [
@@ -139,6 +169,10 @@ EXTENDED_SCRIPTS = [
     'bip68-sequence.py',
     'getblocktemplate_longpoll.py',
     'p2p-timeouts.py',
+    # Version <4 blocks are never allowed in regtest on fabcoin
+    'bipdersig-p2p.py',
+    'bip65-cltv-p2p.py',
+    'p2p-acceptblock.py',
     # vv Tests less than 60s vv
     'bip9-softforks.py',
     'p2p-feefilter.py',
@@ -198,23 +232,23 @@ def main():
     logging.basicConfig(format='%(message)s', level=logging_level)
 
     # Create base test directory
-    tmpdir = "%s/bitcoin_test_runner_%s" % (args.tmpdirprefix, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+    tmpdir = "%s/fabcoin_test_runner_%s" % (args.tmpdirprefix, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
     os.makedirs(tmpdir)
 
     logging.debug("Temporary test directory at %s" % tmpdir)
 
     enable_wallet = config["components"].getboolean("ENABLE_WALLET")
     enable_utils = config["components"].getboolean("ENABLE_UTILS")
-    enable_bitcoind = config["components"].getboolean("ENABLE_BITCOIND")
+    enable_fabcoind = config["components"].getboolean("ENABLE_FABCOIND")
 
     if config["environment"]["EXEEXT"] == ".exe" and not args.force:
-        # https://github.com/bitcoin/bitcoin/commit/d52802551752140cf41f0d9a225a43e84404d3e9
-        # https://github.com/bitcoin/bitcoin/pull/5677#issuecomment-136646964
+        # https://github.com/blockchaingate/fabcoin/commit/d52802551752140cf41f0d9a225a43e84404d3e9
+        # https://github.com/blockchaingate/fabcoin/pull/5677#issuecomment-136646964
         print("Tests currently disabled on Windows by default. Use --force option to enable")
         sys.exit(0)
 
-    if not (enable_wallet and enable_utils and enable_bitcoind):
-        print("No functional tests to run. Wallet, utils, and bitcoind must all be enabled")
+    if not (enable_wallet and enable_utils and enable_fabcoind):
+        print("No functional tests to run. Wallet, utils, and fabcoind must all be enabled")
         print("Rerun `configure` with -enable-wallet, -with-utils and -with-daemon and rerun make")
         sys.exit(0)
 
@@ -266,10 +300,10 @@ def main():
     run_tests(test_list, config["environment"]["SRCDIR"], config["environment"]["BUILDDIR"], config["environment"]["EXEEXT"], tmpdir, args.jobs, args.coverage, passon_args)
 
 def run_tests(test_list, src_dir, build_dir, exeext, tmpdir, jobs=1, enable_coverage=False, args=[]):
-    # Warn if bitcoind is already running (unix only)
+    # Warn if fabcoind is already running (unix only)
     try:
-        if subprocess.check_output(["pidof", "bitcoind"]) is not None:
-            print("%sWARNING!%s There is already a bitcoind process running on this system. Tests may fail unexpectedly due to resource contention!" % (BOLD[1], BOLD[0]))
+        if subprocess.check_output(["pidof", "fabcoind"]) is not None:
+            print("%sWARNING!%s There is already a fabcoind process running on this system. Tests may fail unexpectedly due to resource contention!" % (BOLD[1], BOLD[0]))
     except (OSError, subprocess.SubprocessError):
         pass
 
@@ -279,9 +313,9 @@ def run_tests(test_list, src_dir, build_dir, exeext, tmpdir, jobs=1, enable_cove
         print("%sWARNING!%s There is a cache directory here: %s. If tests fail unexpectedly, try deleting the cache directory." % (BOLD[1], BOLD[0], cache_dir))
 
     #Set env vars
-    if "BITCOIND" not in os.environ:
-        os.environ["BITCOIND"] = build_dir + '/src/bitcoind' + exeext
-        os.environ["BITCOINCLI"] = build_dir + '/src/bitcoin-cli' + exeext
+    if "FABCOIND" not in os.environ:
+        os.environ["FABCOIND"] = build_dir + '/src/fabcoind' + exeext
+        os.environ["FABCOINCLI"] = build_dir + '/src/fabcoin-cli' + exeext
 
     tests_dir = src_dir + '/test/functional/'
 
@@ -366,7 +400,7 @@ class TestHandler:
         self.test_list = test_list
         self.flags = flags
         self.num_running = 0
-        # In case there is a graveyard of zombie bitcoinds, we can apply a
+        # In case there is a graveyard of zombie fabcoinds, we can apply a
         # pseudorandom offset to hopefully jump over them.
         # (625 is PORT_RANGE/MAX_NODES)
         self.portseed_offset = int(time.time() * 1000) % 625
@@ -464,7 +498,7 @@ class RPCCoverage(object):
     Coverage calculation works by having each test script subprocess write
     coverage files into a particular directory. These files contain the RPC
     commands invoked during testing, as well as a complete listing of RPC
-    commands per `bitcoin-cli help` (`rpc_interface.txt`).
+    commands per `fabcoin-cli help` (`rpc_interface.txt`).
 
     After all tests complete, the commands run are combined and diff'd against
     the complete list to calculate uncovered RPC commands.

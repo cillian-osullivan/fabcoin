@@ -1,18 +1,18 @@
-#include "wallettests.h"
+#include <qt/test/wallettests.h>
 
-#include "qt/bitcoinamountfield.h"
-#include "qt/callback.h"
-#include "qt/optionsmodel.h"
-#include "qt/platformstyle.h"
-#include "qt/qvalidatedlineedit.h"
-#include "qt/sendcoinsdialog.h"
-#include "qt/sendcoinsentry.h"
-#include "qt/transactiontablemodel.h"
-#include "qt/transactionview.h"
-#include "qt/walletmodel.h"
-#include "test/test_bitcoin.h"
-#include "validation.h"
-#include "wallet/wallet.h"
+#include <qt/fabcoinamountfield.h>
+#include <qt/callback.h>
+#include <qt/optionsmodel.h>
+#include <qt/platformstyle.h>
+#include <qt/qvalidatedlineedit.h>
+#include <qt/sendcoinsdialog.h>
+#include <qt/sendcoinsentry.h>
+#include <qt/transactiontablemodel.h>
+#include <qt/transactionview.h>
+#include <qt/walletmodel.h>
+#include <test/test_fabcoin.h>
+#include <validation.h>
+#include <wallet/wallet.h>
 
 #include <QAbstractButton>
 #include <QAction>
@@ -21,6 +21,10 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QVBoxLayout>
+
+void avoidCompilerWarningsDefinedButNotUsedTransactionWalletTests() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 namespace
 {
@@ -57,12 +61,12 @@ void ConfirmSend(QString* text = nullptr, bool cancel = false)
 }
 
 //! Send coins to address and return txid.
-uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CBitcoinAddress& address, CAmount amount, bool rbf)
+uint256 SendCoins(CWallet& wallet, SendCoinsDialog& sendCoinsDialog, const CFabcoinAddress& address, CAmount amount, bool rbf)
 {
     QVBoxLayout* entries = sendCoinsDialog.findChild<QVBoxLayout*>("entries");
     SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(entries->itemAt(0)->widget());
     entry->findChild<QValidatedLineEdit*>("payTo")->setText(QString::fromStdString(address.ToString()));
-    entry->findChild<BitcoinAmountField*>("payAmount")->setValue(amount);
+    entry->findChild<FabcoinAmountField*>("payAmount")->setValue(amount);
     sendCoinsDialog.findChild<QFrame*>("frameFee")
         ->findChild<QFrame*>("frameFeeSelection")
         ->findChild<QCheckBox*>("optInRBF")
@@ -137,13 +141,14 @@ void BumpFee(TransactionView& view, const uint256& txid, bool expectDisabled, st
 //
 // This also requires overriding the default minimal Qt platform:
 //
-//     src/qt/test/test_bitcoin-qt -platform xcb      # Linux
-//     src/qt/test/test_bitcoin-qt -platform windows  # Windows
-//     src/qt/test/test_bitcoin-qt -platform cocoa    # macOS
+//     src/qt/test/test_fabcoin-qt -platform xcb      # Linux
+//     src/qt/test/test_fabcoin-qt -platform windows  # Windows
+//     src/qt/test/test_fabcoin-qt -platform cocoa    # macOS
 void TestSendCoins()
 {
-    // Set up wallet and chain with 105 blocks (5 mature blocks for spending).
-    TestChain100Setup test;
+    // Set up wallet and chain with 805 blocks (5 mature blocks for spending).
+    /// TestChain800Setup test;
+    TestChain800Setup test;
     for (int i = 0; i < 5; ++i) {
         test.CreateAndProcessBlock({}, GetScriptForRawPubKey(test.coinbaseKey.GetPubKey()));
     }
@@ -171,10 +176,12 @@ void TestSendCoins()
 
     // Send two transactions, and verify they are added to transaction list.
     TransactionTableModel* transactionTableModel = walletModel.getTransactionTableModel();
-    QCOMPARE(transactionTableModel->rowCount({}), 105);
-    uint256 txid1 = SendCoins(wallet, sendCoinsDialog, CBitcoinAddress(CKeyID()), 5 * COIN, false /* rbf */);
-    uint256 txid2 = SendCoins(wallet, sendCoinsDialog, CBitcoinAddress(CKeyID()), 10 * COIN, true /* rbf */);
-    QCOMPARE(transactionTableModel->rowCount({}), 107);
+    QCOMPARE(transactionTableModel->rowCount({}), 805);
+    //??? QCOMPARE(transactionTableModel->rowCount({}), 805);
+    uint256 txid1 = SendCoins(wallet, sendCoinsDialog, CFabcoinAddress(CKeyID()), 5 * COIN, false /* rbf */);
+    uint256 txid2 = SendCoins(wallet, sendCoinsDialog, CFabcoinAddress(CKeyID()), 10 * COIN, true /* rbf */);
+    QCOMPARE(transactionTableModel->rowCount({}), 807);
+    //??? QCOMPARE(transactionTableModel->rowCount({}), 807);
     QVERIFY(FindTx(*transactionTableModel, txid1).isValid());
     QVERIFY(FindTx(*transactionTableModel, txid2).isValid());
 
@@ -192,5 +199,16 @@ void TestSendCoins()
 
 void WalletTests::walletTests()
 {
+#ifdef Q_OS_MAC
+    if (QApplication::platformName() == "minimal") {
+        // Disable for mac on "minimal" platform to avoid crashes inside the Qt
+        // framework when it tries to look up unimplemented cocoa functions,
+        // and fails to handle returned nulls
+        // (https://bugreports.qt.io/browse/QTBUG-49686).
+        QWARN("Skipping WalletTests on mac build with 'minimal' platform set due to Qt bugs. To run AppTests, invoke "
+              "with 'test_bitcoin-qt -platform cocoa' on mac, or else use a linux or windows build.");
+        return;
+    }
+#endif    
     TestSendCoins();
 }

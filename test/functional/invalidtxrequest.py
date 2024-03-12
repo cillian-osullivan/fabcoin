@@ -11,7 +11,7 @@ from test_framework.test_framework import ComparisonTestFramework
 from test_framework.comptool import TestManager, TestInstance, RejectResult
 from test_framework.blocktools import *
 import time
-
+from test_framework.fabcoinconfig import INITIAL_BLOCK_REWARD
 
 
 # Use the ComparisonTestFramework with 1 node: only use --testbinary.
@@ -40,7 +40,7 @@ class InvalidTxRequestTest(ComparisonTestFramework):
         Create a new block with an anyone-can-spend coinbase
         '''
         height = 1
-        block = create_block(self.tip, create_coinbase(height), self.block_time)
+        block = create_block(self.tip, create_coinbase(height), height, self.block_time)
         self.block_time += 1
         block.solve()
         # Save the coinbase for later
@@ -53,8 +53,8 @@ class InvalidTxRequestTest(ComparisonTestFramework):
         Now we need that block to mature so we can spend the coinbase.
         '''
         test = TestInstance(sync_every_block=False)
-        for i in range(100):
-            block = create_block(self.tip, create_coinbase(height), self.block_time)
+        for i in range(COINBASE_MATURITY):
+            block = create_block(self.tip, create_coinbase(height), height, self.block_time)
             block.solve()
             self.tip = block.sha256
             self.block_time += 1
@@ -64,7 +64,7 @@ class InvalidTxRequestTest(ComparisonTestFramework):
 
         # b'\x64' is OP_NOTIF
         # Transaction will be rejected with code 16 (REJECT_INVALID)
-        tx1 = create_transaction(self.block1.vtx[0], 0, b'\x64', 50 * COIN - 12000)
+        tx1 = create_transaction(self.block1.vtx[0], 0, b'\x64', INITIAL_BLOCK_REWARD * COIN - 120000)
         yield TestInstance([[tx1, RejectResult(16, b'mandatory-script-verify-flag-failed')]])
 
         # TODO: test further transactions...

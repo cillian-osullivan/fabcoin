@@ -1,13 +1,13 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_COMPAT_H
-#define BITCOIN_COMPAT_H
+#ifndef FABCOIN_COMPAT_H
+#define FABCOIN_COMPAT_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include <config/fabcoin-config.h>
 #endif
 
 #ifdef WIN32
@@ -49,7 +49,7 @@
 
 #ifndef WIN32
 typedef unsigned int SOCKET;
-#include "errno.h"
+#include <errno.h>
 #define WSAGetLastError()   errno
 #define WSAEINVAL           EINVAL
 #define WSAEALREADY         EALREADY
@@ -72,6 +72,18 @@ typedef unsigned int SOCKET;
 #define MAX_PATH            1024
 #endif
 
+#ifndef WIN32
+// PRIO_MAX is not defined on Solaris
+#ifndef PRIO_MAX
+#define PRIO_MAX 20
+#endif
+#define THREAD_PRIORITY_LOWEST          PRIO_MAX
+#define THREAD_PRIORITY_BELOW_NORMAL    2
+#define THREAD_PRIORITY_NORMAL          0
+#define THREAD_PRIORITY_ABOVE_NORMAL    (-2)
+#endif
+
+
 #if HAVE_DECL_STRNLEN == 0
 size_t strnlen( const char *start, size_t max_len);
 #endif // HAVE_DECL_STRNLEN
@@ -84,4 +96,4 @@ bool static inline IsSelectableSocket(const SOCKET& s) {
 #endif
 }
 
-#endif // BITCOIN_COMPAT_H
+#endif // FABCOIN_COMPAT_H

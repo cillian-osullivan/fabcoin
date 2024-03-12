@@ -1,16 +1,23 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CHAIN_H
-#define BITCOIN_CHAIN_H
+#ifndef FABCOIN_CHAIN_H
+#define FABCOIN_CHAIN_H
 
-#include "arith_uint256.h"
-#include "primitives/block.h"
-#include "pow.h"
-#include "tinyformat.h"
-#include "uint256.h"
+#include <arith_uint256.h>
+#include <primitives/block.h>
+#include <pow.h>
+#include <tinyformat.h>
+#include <uint256.h>
+#include <util.h>
+
+///////////////////////////////////////////// // fasc
+#include <libdevcore/SHA3.h>
+#include <libdevcore/RLP.h>
+#include <arith_uint256.h>
+/////////////////////////////////////////////
 
 #include <vector>
 
@@ -176,6 +183,9 @@ public:
     //! pointer to the index of the predecessor of this block
     CBlockIndex* pprev;
 
+    //! pointer to the index of the successor of this block
+    CBlockIndex* pnext;
+
     //! pointer to the index of some further predecessor of this block
     CBlockIndex* pskip;
 
@@ -209,9 +219,14 @@ public:
     //! block header
     int nVersion;
     uint256 hashMerkleRoot;
+    uint32_t nReserved[7];
     unsigned int nTime;
     unsigned int nBits;
-    unsigned int nNonce;
+    uint256 nNonce;
+    uint256 hashStateRoot; // fasc
+    uint256 hashUTXORoot; // fasc
+    uint256 hashProof; // fasc
+    std::vector<unsigned char> nSolution;
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     int32_t nSequenceId;
@@ -223,6 +238,7 @@ public:
     {
         phashBlock = nullptr;
         pprev = nullptr;
+        pnext = nullptr;
         pskip = nullptr;
         nHeight = 0;
         nFile = 0;
@@ -237,9 +253,14 @@ public:
 
         nVersion       = 0;
         hashMerkleRoot = uint256();
+        memset(nReserved, 0, sizeof(nReserved));
         nTime          = 0;
         nBits          = 0;
-        nNonce         = 0;
+        nNonce         = uint256();
+        hashStateRoot  = uint256(h256Touint(dev::h256("e965ffd002cd6ad0e2dc402b8044de833e06b23127ea8c3d80aec91410771495"))); // fasc
+        hashUTXORoot   = uint256(h256Touint(dev::sha3(dev::rlp("")))); // fasc
+
+        nSolution.clear();
     }
 
     CBlockIndex()
@@ -253,9 +274,15 @@ public:
 
         nVersion       = block.nVersion;
         hashMerkleRoot = block.hashMerkleRoot;
+        nHeight        = block.nHeight;
+        memcpy(nReserved, block.nReserved, sizeof(nReserved));
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+        //nMoneySupply   = 0;
+        hashStateRoot  = block.hashStateRoot; // fasc
+        hashUTXORoot   = block.hashUTXORoot; // fasc
+        nSolution      = block.nSolution;
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -283,9 +310,14 @@ public:
         if (pprev)
             block.hashPrevBlock = pprev->GetBlockHash();
         block.hashMerkleRoot = hashMerkleRoot;
+        block.nHeight        = nHeight;
+        memcpy(block.nReserved, nReserved, sizeof(block.nReserved));
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        block.hashStateRoot  = hashStateRoot; // fasc
+        block.hashUTXORoot   = hashUTXORoot; // fasc
+        block.nSolution      = nSolution;
         return block;
     }
 
@@ -319,6 +351,21 @@ public:
         std::sort(pbegin, pend);
         return pbegin[(pend - pbegin)/2];
     }
+
+    bool IsProofOfWork() const // fasc
+    {
+        return true;
+    }
+
+    bool IsProofOfStake() const
+    {
+        return false;
+    }
+
+    bool IsSupportContract()  const;
+
+    bool IsLegacyFormat()  const;
+
 
     std::string ToString() const
     {
@@ -357,6 +404,7 @@ public:
     //! Efficiently find an ancestor of this block.
     CBlockIndex* GetAncestor(int height);
     const CBlockIndex* GetAncestor(int height) const;
+
 };
 
 arith_uint256 GetBlockProof(const CBlockIndex& block);
@@ -402,9 +450,21 @@ public:
         READWRITE(this->nVersion);
         READWRITE(hashPrev);
         READWRITE(hashMerkleRoot);
+        for(size_t i = 0; i < (sizeof(nReserved) / sizeof(nReserved[0])); i++) {
+            READWRITE(nReserved[i]);
+        }
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+
+        bool hascontract = IsSupportContract();
+        if( hascontract )
+        {
+            READWRITE(hashStateRoot); // fasc
+            READWRITE(hashUTXORoot); // fasc
+        }
+
+        READWRITE(nSolution);
     }
 
     uint256 GetBlockHash() const
@@ -413,9 +473,15 @@ public:
         block.nVersion        = nVersion;
         block.hashPrevBlock   = hashPrev;
         block.hashMerkleRoot  = hashMerkleRoot;
+        block.hashStateRoot   = hashStateRoot; // fasc
+        block.hashUTXORoot    = hashUTXORoot; // fasc
+        block.nHeight         = nHeight;
+        memcpy(block.nReserved, nReserved, sizeof(block.nReserved));
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
+
+        block.nSolution       = nSolution;
         return block.GetHash();
     }
 
@@ -491,4 +557,4 @@ public:
     CBlockIndex* FindEarliestAtLeast(int64_t nTime) const;
 };
 
-#endif // BITCOIN_CHAIN_H
+#endif // FABCOIN_CHAIN_H

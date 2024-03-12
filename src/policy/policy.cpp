@@ -1,36 +1,39 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 // NOTE: This file is intended to be customised by the end user, and includes only local node policy logic
 
-#include "policy/policy.h"
+#include <policy/policy.h>
 
-#include "consensus/validation.h"
-#include "validation.h"
-#include "coins.h"
-#include "tinyformat.h"
-#include "util.h"
-#include "utilstrencodings.h"
+#include <consensus/validation.h>
+#include <validation.h>
+#include <coins.h>
+#include <tinyformat.h>
+#include <util.h>
+#include <utilstrencodings.h>
 
+void avoidCompilerWarningsDefinedButNotUsedPolicy() {
+    (void) FetchSCARShardPublicKeysInternalPointer;
+}
 
 CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 {
     // "Dust" is defined in terms of dustRelayFee,
-    // which has units satoshis-per-kilobyte.
+    // which has units lius-per-kilobyte.
     // If you'd pay more in fees than the value of the output
     // to spend something, then we consider it dust.
     // A typical spendable non-segwit txout is 34 bytes big, and will
     // need a CTxIn of at least 148 bytes to spend:
     // so dust is a spendable txout less than
-    // 182*dustRelayFee/1000 (in satoshis).
-    // 546 satoshis at the default rate of 3000 sat/kB.
+    // 182*dustRelayFee/1000 (in lius).
+    // 546 lius at the default rate of 3000 sat/kB.
     // A typical spendable segwit txout is 31 bytes big, and will
     // need a CTxIn of at least 67 bytes to spend:
     // so dust is a spendable txout less than
-    // 98*dustRelayFee/1000 (in satoshis).
-    // 294 satoshis at the default rate of 3000 sat/kB.
+    // 98*dustRelayFee/1000 (in lius).
+    // 294 lius at the default rate of 3000 sat/kB.
     if (txout.scriptPubKey.IsUnspendable())
         return 0;
 
@@ -51,7 +54,8 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 
 bool IsDust(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 {
-    return (txout.nValue < GetDustThreshold(txout, dustRelayFeeIn));
+    return (txout.nValue < GetDustThreshold(txout, dustRelayFeeIn) && 
+            !txout.scriptPubKey.HasOpCreate() && !txout.scriptPubKey.HasOpCall());
 }
 
     /**

@@ -1,16 +1,16 @@
-// Copyright (c) 2011-2016 The Bitcoin Core developers
+// Copyright (c) 2011-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_QT_PAYMENTREQUESTPLUS_H
-#define BITCOIN_QT_PAYMENTREQUESTPLUS_H
+#ifndef FABCOIN_QT_PAYMENTREQUESTPLUS_H
+#define FABCOIN_QT_PAYMENTREQUESTPLUS_H
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#include "paymentrequest.pb.h"
+#include <paymentrequest.pb.h>
 #pragma GCC diagnostic pop
 
-#include "base58.h"
+#include <base58.h>
 
 #include <openssl/x509.h>
 
@@ -48,4 +48,4 @@ private:
     payments::PaymentDetails details;
 };
 
-#endif // BITCOIN_QT_PAYMENTREQUESTPLUS_H
+#endif // FABCOIN_QT_PAYMENTREQUESTPLUS_H

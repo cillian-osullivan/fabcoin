@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_MERKLE
-#define BITCOIN_MERKLE
+#ifndef FABCOIN_MERKLE
+#define FABCOIN_MERKLE
 
 #include <stdint.h>
 #include <vector>
 
-#include "primitives/transaction.h"
-#include "primitives/block.h"
-#include "uint256.h"
+#include <primitives/transaction.h>
+#include <primitives/block.h>
+#include <uint256.h>
 
 uint256 ComputeMerkleRoot(const std::vector<uint256>& leaves, bool* mutated = nullptr);
 std::vector<uint256> ComputeMerkleBranch(const std::vector<uint256>& leaves, uint32_t position);

@@ -1,18 +1,18 @@
-// Copyright (c) 2014 The Bitcoin Core developers
+// Copyright (c) 2014-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CRYPTO_COMMON_H
-#define BITCOIN_CRYPTO_COMMON_H
+#ifndef FABCOIN_CRYPTO_COMMON_H
+#define FABCOIN_CRYPTO_COMMON_H
 
 #if defined(HAVE_CONFIG_H)
-#include "bitcoin-config.h"
+#include <config/fabcoin-config.h>
 #endif
 
 #include <stdint.h>
 #include <string.h>
 
-#include "compat/endian.h"
+#include <compat/endian.h>
 
 uint16_t static inline ReadLE16(const unsigned char* ptr)
 {
@@ -100,4 +100,4 @@ uint64_t static inline CountBits(uint64_t x)
     return ret;
 }
 
-#endif // BITCOIN_CRYPTO_COMMON_H
+#endif // FABCOIN_CRYPTO_COMMON_H

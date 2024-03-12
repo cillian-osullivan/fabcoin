@@ -8,7 +8,7 @@ Test that the CHECKLOCKTIMEVERIFY soft-fork activates at (regtest) block height
 1351.
 """
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import FabcoinTestFramework
 from test_framework.util import *
 from test_framework.mininode import *
 from test_framework.blocktools import create_coinbase, create_block
@@ -59,7 +59,7 @@ def create_transaction(node, coinbase, to_address, amount):
     tx.deserialize(BytesIO(hex_str_to_bytes(signresult['hex'])))
     return tx
 
-class BIP65Test(BitcoinTestFramework):
+class BIP65Test(FabcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
         self.extra_args = [['-promiscuousmempoolflags=1', '-whitelist=127.0.0.1']]
@@ -89,7 +89,7 @@ class BIP65Test(BitcoinTestFramework):
 
         tip = self.nodes[0].getbestblockhash()
         block_time = self.nodes[0].getblockheader(tip)['mediantime'] + 1
-        block = create_block(int(tip, 16), create_coinbase(CLTV_HEIGHT - 1), block_time)
+        block = create_block(int(tip, 16), create_coinbase(CLTV_HEIGHT - 1), CLTV_HEIGHT - 1, block_time)
         block.nVersion = 3
         block.vtx.append(spendtx)
         block.hashMerkleRoot = block.calc_merkle_root()
@@ -101,7 +101,7 @@ class BIP65Test(BitcoinTestFramework):
         self.log.info("Test that blocks must now be at least version 4")
         tip = block.sha256
         block_time += 1
-        block = create_block(tip, create_coinbase(CLTV_HEIGHT), block_time)
+        block = create_block(tip, create_coinbase(CLTV_HEIGHT), CLTV_HEIGHT, block_time)
         block.nVersion = 3
         block.solve()
         node0.send_and_ping(msg_block(block))

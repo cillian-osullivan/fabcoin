@@ -1,17 +1,17 @@
-// Copyright (c) 2014-2016 The Bitcoin Core developers
+// Copyright (c) 2014-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_COMPAT_ENDIAN_H
-#define BITCOIN_COMPAT_ENDIAN_H
+#ifndef FABCOIN_COMPAT_ENDIAN_H
+#define FABCOIN_COMPAT_ENDIAN_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
+#include <config/fabcoin-config.h>
 #endif
 
-#include <stdint.h>
+#include <compat/byteswap.h>
 
-#include "compat/byteswap.h"
+#include <stdint.h>
 
 #if defined(HAVE_ENDIAN_H)
 #include <endian.h>
@@ -193,4 +193,4 @@ inline uint64_t le64toh(uint64_t little_endian_64bits)
 
 #endif // WORDS_BIGENDIAN
 
-#endif // BITCOIN_COMPAT_ENDIAN_H
+#endif // FABCOIN_COMPAT_ENDIAN_H
